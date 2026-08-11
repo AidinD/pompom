@@ -91,6 +91,28 @@ export default function App(): JSX.Element {
     applyTheme(document.documentElement, theme, state)
   }, [theme, state])
 
+  // The ambient bar window should be up only while a session is live (running or
+  // awaiting the takeover) AND the toggle is on. It honours a persisted
+  // `ambientEnabled` automatically: the moment a session starts with it true,
+  // `shouldShowAmbient` flips and the effect below reveals the window.
+  const shouldShowAmbient =
+    ambientEnabled && (engine.phase === 'running' || engine.phase === 'awaiting')
+
+  // Create/show ↔ hide the always-on-top ambient window. Stop/complete route
+  // through `phase !== running/awaiting`, so this also hides it on session end.
+  useEffect(() => {
+    window.pompom.ambient.setVisible(shouldShowAmbient)
+  }, [shouldShowAmbient])
+
+  // Push the live elapsed fraction to the bar each time the engine snapshot
+  // changes while it should be visible — no separate loop, just an effect keyed
+  // on the relevant engine fields (matching the engine's ~200ms tick cadence).
+  // We skip publishing while paused so the bar freezes at its last width.
+  useEffect(() => {
+    if (!shouldShowAmbient || engine.paused) return
+    window.pompom.ambient.push({ theme, state, elapsedFrac: engine.elapsedFrac })
+  }, [shouldShowAmbient, engine.paused, engine.elapsedFrac, theme, state])
+
   function handleLoadTemplate(id: string): void {
     const tpl = templates.find((t) => t.id === id)
     if (!tpl) return
@@ -128,7 +150,8 @@ export default function App(): JSX.Element {
       void window.pompom.store.set({ ambientEnabled: next })
       return next
     })
-    // The actual always-on-top ambient window is created in a later plan step.
+    // The effect keyed on `shouldShowAmbient` creates/hides the ambient window;
+    // this handler only flips + persists the setting.
   }
 
   const windowClass = `window state-${state}`

@@ -26,3 +26,18 @@ export interface TakeoverStep {
   /** Grace-period length in seconds. */
   graceSecs: number
 }
+
+/**
+ * Live-state payload pushed to the ambient bar window (plan steps 9-10). The
+ * bar is a dumb view: it just draws a fill whose width is the current step's
+ * ELAPSED fraction, recolouring with the work/rest accent. The main-window timer
+ * engine publishes one of these each tick while the ambient bar should be shown.
+ */
+export interface AmbientTick {
+  /** Active theme id, so the bar's accent matches the main window. */
+  theme: string
+  /** Whether the current step is a work or rest block (drives the accent hue). */
+  state: 'work' | 'rest'
+  /** `1 - frac` — elapsed fraction of the current step; the bar's fill width. */
+  elapsedFrac: number
+}
