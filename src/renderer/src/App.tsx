@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react'
 import { DEFAULT_THEME, THEMES, applyTheme, type ThemeId } from './themes/themes'
-import {
-  buildTimeline,
-  SEED_TEMPLATES,
-  DEFAULT_CFG,
-  type Cfg,
-  type Template
-} from '@shared/model'
+import { SEED_TEMPLATES, DEFAULT_CFG, type Cfg, type Template } from '@shared/model'
 import type { StoreData } from '@shared/store'
 import ConfigView from './views/ConfigView'
+import TimerView from './views/TimerView'
+import CompleteView from './views/CompleteView'
+import { useTimerEngine } from './hooks/useTimerEngine'
 
 /** Narrow an arbitrary persisted theme string to a known ThemeId. */
 function coerceTheme(id: string): ThemeId {
@@ -17,9 +14,11 @@ function coerceTheme(id: string): ThemeId {
 
 /**
  * Main-window shell. Loads the durable store on mount, owns the templates +
- * theme + last config, and renders the config view inside the themed window
- * frame. Timer / complete views and hash-routed aux windows arrive in later
- * plan steps; the timer engine still stubs out `onStart`.
+ * theme + last config, and hosts the wall-clock timer engine. It routes between
+ * the config, timer, and complete surfaces by the engine phase, applying the
+ * active theme + work/rest state class to both the document root (so the
+ * theme-scoped `--accent` hue overrides cascade) and the `#window` card (for the
+ * accent glow). The takeover + ambient windows arrive in later plan steps.
  */
 export default function App(): JSX.Element {
   const [cfg, setCfg] = useState<Cfg>(DEFAULT_CFG)
@@ -27,6 +26,9 @@ export default function App(): JSX.Element {
   const [cfgKey, setCfgKey] = useState(0)
   const [theme, setTheme] = useState<ThemeId>(DEFAULT_THEME)
   const [templates, setTemplates] = useState<Template[]>(SEED_TEMPLATES)
+  const [ambientEnabled, setAmbientEnabled] = useState(false)
+
+  const engine = useTimerEngine()
 
   // Load persisted state from disk once on mount.
   useEffect(() => {
@@ -35,6 +37,7 @@ export default function App(): JSX.Element {
       if (cancelled) return
       setTemplates(s.templates?.length ? s.templates : SEED_TEMPLATES)
       setTheme(coerceTheme(s.theme))
+      setAmbientEnabled(!!s.ambientEnabled)
       if (s.lastConfig) setCfg(s.lastConfig)
       // Remount ConfigView so its local state re-seeds from the loaded config.
       setCfgKey((k) => k + 1)
@@ -44,11 +47,15 @@ export default function App(): JSX.Element {
     }
   }, [])
 
-  // Apply the active theme (work state) to the document root so its CSS
-  // variables cascade to the whole app; re-runs when the theme changes.
+  // Derive the work/rest state from the current step (defaults to 'work' when
+  // idle, so the config/complete surfaces show the primary accent).
+  const state: 'work' | 'rest' = engine.step?.type === 'rest' ? 'rest' : 'work'
+
+  // Apply the active theme + state to the document root so the theme's CSS
+  // variables (incl. the state-scoped `--accent` overrides) cascade app-wide.
   useEffect(() => {
-    applyTheme(document.documentElement, theme, 'work')
-  }, [theme])
+    applyTheme(document.documentElement, theme, state)
+  }, [theme, state])
 
   function handleLoadTemplate(id: string): void {
     const tpl = templates.find((t) => t.id === id)
@@ -78,31 +85,53 @@ export default function App(): JSX.Element {
   function handleStart(next: Cfg): void {
     setCfg(next)
     void window.pompom.store.set({ lastConfig: next })
-    // The timer engine + view are built in a later step; for now, prove the
-    // config → timeline wiring is correct.
-    const timeline = buildTimeline(next)
-    // eslint-disable-next-line no-console
-    console.log('[PomPom] start session', next, timeline)
+    engine.start(next)
   }
 
+  function handleToggleAmbient(): void {
+    setAmbientEnabled((prev) => {
+      const next = !prev
+      void window.pompom.store.set({ ambientEnabled: next })
+      return next
+    })
+    // The actual always-on-top ambient window is created in a later plan step.
+  }
+
+  const windowClass = `window state-${state}`
+
   return (
-    <div className="window state-work" id="window">
+    <div className={windowClass} id="window">
       <div className="titlebar">
         <span className="app-name">
           <span className="brand-mark" />
           PomPom
         </span>
       </div>
-      <ConfigView
-        key={cfgKey}
-        initialCfg={cfg}
-        templates={templates}
-        theme={theme}
-        onStart={handleStart}
-        onLoadTemplate={handleLoadTemplate}
-        onSaveTemplate={handleSaveTemplate}
-        onThemeChange={handleThemeChange}
-      />
+
+      {engine.phase === 'idle' && (
+        <ConfigView
+          key={cfgKey}
+          initialCfg={cfg}
+          templates={templates}
+          theme={theme}
+          onStart={handleStart}
+          onLoadTemplate={handleLoadTemplate}
+          onSaveTemplate={handleSaveTemplate}
+          onThemeChange={handleThemeChange}
+        />
+      )}
+
+      {(engine.phase === 'running' || engine.phase === 'awaiting') && (
+        <TimerView
+          engine={engine}
+          ambientEnabled={ambientEnabled}
+          onToggleAmbient={handleToggleAmbient}
+        />
+      )}
+
+      {engine.phase === 'complete' && (
+        <CompleteView cfg={engine.cfg} onNewSession={() => engine.stop()} />
+      )}
     </div>
   )
 }
