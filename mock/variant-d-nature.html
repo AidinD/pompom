@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PomPom — variant D: Nature</title>
+<style>
+  /* ============================================================
+     PomPom — design variant D: "Nature"
+     Deep forest dark theme. Moss/fern green for work, warm bark
+     amber for rest. Organic, rounded, unhurried — a woodland
+     cabin rather than a screen. No glow; a gentle grow-in on
+     step change instead of a pulse.
+     ============================================================ */
+
+  :root {
+    --bg:        #11150e;
+    --bg-2:      #161c11;
+    --surface:   #1a2114;
+    --surface-2: #212a19;
+    --border:    #2c3722;
+    --text:      #e7ecd9;
+    --text-dim:  #9fac89;
+    --text-faint:#616f4c;
+
+    --accent:      #86a563; /* work: fern green */
+    --accent-soft: rgba(134, 165, 99, 0.14);
+    --accent-ink:  #12160c;
+
+    --radius:   18px;
+    --radius-sm:12px;
+    --ease: cubic-bezier(.22,.61,.36,1);
+    font-size: 16px;
+  }
+
+  .state-work {
+    --accent:      #86a563;
+    --accent-soft: rgba(134, 165, 99, 0.14);
+  }
+  .state-rest {
+    --accent:      #c6883f; /* rest: bark amber */
+    --accent-soft: rgba(198, 136, 63, 0.14);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background:
+      radial-gradient(700px 420px at 15% 0%, rgba(134,165,99,.05), transparent 60%),
+      radial-gradient(700px 420px at 100% 100%, rgba(198,136,63,.04), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+  .tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  .window {
+    position: relative;
+    width: 460px;
+    max-width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: 0 30px 70px -32px rgba(0,0,0,.55);
+    overflow: hidden;
+  }
+
+  .titlebar {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; opacity:.55; }
+  .dot.r { background:#a97a5c; } .dot.y { background:#c6a45c; } .dot.g { background:#86a563; }
+  .titlebar .app-name {
+    margin-left: 8px; font-size: 12px; font-weight: 600; letter-spacing: .05em;
+    color: var(--text-dim); display:flex; align-items:center; gap:8px;
+  }
+  .brand-mark {
+    width: 15px; height: 15px; border-radius: 50% 50% 50% 4px;
+    background: var(--accent);
+    transition: background .6s var(--ease);
+  }
+
+  .ambient-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--surface-2);
+    z-index: 60;
+    opacity: 0;
+    transform: translateY(-100%);
+    transition: opacity .4s var(--ease), transform .4s var(--ease);
+  }
+  .ambient-bar.on { opacity: 1; transform: translateY(0); }
+  .ambient-bar .fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 1s linear, background .6s var(--ease);
+  }
+  .ambient-note {
+    position:absolute; top:9px; right:12px; z-index:60;
+    font-size:9.5px; letter-spacing:.08em; text-transform:uppercase;
+    color: var(--text-faint); opacity:0; transition: opacity .4s;
+  }
+  .ambient-bar.on ~ .ambient-note { opacity:1; }
+
+  .view { display: none; padding: 28px 26px 26px; }
+  .view.active { display: block; animation: viewIn .4s var(--ease); }
+  @keyframes viewIn { from { opacity:0; transform: translateY(4px);} to {opacity:1; transform:none;} }
+
+  .view-title { font-size: 12.5px; text-transform: uppercase; letter-spacing: .14em; color: var(--text-faint); margin-bottom: 20px; font-weight:600; }
+
+  .field { margin-bottom: 20px; }
+  .field > label { display:block; font-size: 13px; color: var(--text-dim); margin-bottom: 9px; font-weight:500; }
+
+  .stepper { display: inline-flex; align-items: center; background: var(--bg-2); border: 1px solid var(--border); border-radius: 999px; overflow:hidden; }
+  .stepper button {
+    width: 40px; height: 40px; border: none; background: transparent; color: var(--text);
+    font-size: 19px; cursor: pointer; transition: background .18s; line-height:1;
+  }
+  .stepper button:hover { background: var(--surface-2); }
+  .stepper .val { min-width: 46px; text-align:center; font-size: 16.5px; font-weight:600; }
+
+  .duration-row { display:flex; gap: 12px; }
+  .duration-row .field { flex:1; margin-bottom:0; }
+  .num-input {
+    display:flex; align-items:center; background: var(--bg-2); border:1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 0 14px; height: 42px;
+  }
+  .num-input input {
+    background:none; border:none; color:var(--text); font-size:16.5px; font-weight:600; width:100%;
+    outline:none;
+  }
+  .num-input .unit { color: var(--text-faint); font-size: 11.5px; }
+
+  .steps-list { display:flex; flex-direction:column; gap:8px; }
+  .step-row {
+    display:flex; align-items:center; gap:12px; background: var(--bg-2);
+    border:1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 13px;
+  }
+  .step-index {
+    width: 26px; height: 26px; border-radius: 50% 50% 50% 6px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 12px; font-weight:700; color: var(--accent-ink);
+    background: var(--accent);
+  }
+  .step-row input {
+    flex:1; background:none; border:none; color:var(--text); font-size: 14.5px; outline:none;
+    padding: 4px 0;
+  }
+  .step-row input::placeholder { color: var(--text-faint); }
+  .step-row .work-min { color: var(--text-faint); font-size: 12px; }
+
+  .template-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .chip {
+    background: var(--bg-2); border:1px solid var(--border); color: var(--text-dim);
+    border-radius: 999px; padding: 7px 14px; font-size: 12.5px; cursor:pointer;
+    transition: all .2s var(--ease); white-space:nowrap;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .chip.add { border-style: dashed; color: var(--text-faint); }
+
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius: 999px; cursor:pointer; font-weight:600;
+    font-size:15px; padding: 0 22px; height: 48px; transition: all .2s var(--ease);
+    font-family:inherit;
+  }
+  .btn-primary {
+    width:100%; margin-top: 8px;
+    background: var(--accent); color: var(--accent-ink);
+  }
+  .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-ghost { background: var(--bg-2); color: var(--text-dim); border:1px solid var(--border); border-radius: var(--radius-sm); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+
+  .hint { font-size: 12px; color: var(--text-faint); margin-top: 10px; line-height:1.55; }
+
+  .timer-wrap { display:flex; flex-direction:column; align-items:center; text-align:center; }
+
+  .step-badge {
+    display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.1em; color: var(--accent);
+    background: var(--accent-soft); padding: 6px 14px; border-radius:999px; margin-bottom: 8px;
+    transition: color .6s var(--ease), background .6s var(--ease);
+  }
+  .step-badge .pulse-dot { width:7px; height:7px; border-radius:50%; background: var(--accent); animation: dotSway 3s ease-in-out infinite; }
+  @keyframes dotSway { 0%,100%{ transform: scale(1); opacity:1; } 50%{ transform: scale(1.15); opacity:.7; } }
+
+  .task-label { font-size: 22px; font-weight:700; margin-bottom: 22px; letter-spacing:-.01em; }
+
+  .ring-wrap { position: relative; width: 240px; height: 240px; margin-bottom: 8px; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-track { fill:none; stroke: var(--surface-2); stroke-width: 11; stroke-linecap: round; }
+  .ring-prog {
+    fill:none; stroke: var(--accent); stroke-width: 11; stroke-linecap: round;
+    transition: stroke-dashoffset 1.1s var(--ease), stroke .6s var(--ease);
+  }
+  .ring-center {
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .ring-time { font-size: 50px; font-weight: 700; letter-spacing: -.02em; line-height:1; }
+  .ring-sub { font-size: 12px; color: var(--text-faint); margin-top: 9px; letter-spacing:.04em; }
+
+  .window.pulsing .ring-prog { animation: ringGrow 1.2s var(--ease); }
+  @keyframes ringGrow { 0%{ transform-origin: center; transform: scale(.94); opacity:.5; } 100%{ transform: scale(1); opacity:1; } }
+
+  .sequence { display:flex; gap:6px; margin: 22px 0 6px; width: 100%; justify-content:center; flex-wrap:wrap; }
+  .seg {
+    height: 6px; border-radius: 4px; background: var(--surface-2); flex:1; min-width: 8px; max-width: 40px;
+    position:relative; overflow:hidden;
+  }
+  .seg.rest-seg { max-width: 16px; opacity:.7; }
+  .seg.done { background: var(--accent); opacity:.55; }
+  .seg.current { background: var(--surface-2); }
+  .seg.current .seg-fill { position:absolute; inset:0; width:0%; background: var(--accent); transition: width 1s linear; }
+  .seq-caption { font-size:11px; color: var(--text-faint); letter-spacing:.05em; }
+
+  .next-up { margin-top: 18px; font-size: 13px; color: var(--text-dim); }
+  .next-up b { color: var(--text); }
+
+  .controls { display:flex; gap:10px; margin-top: 22px; width:100%; }
+  .controls .btn { flex:1; height: 46px; padding:0 12px; font-size:14px; }
+  .icon-btn { width:46px; flex:0 0 auto !important; border-radius: 50%; }
+
+  .toggle-row {
+    display:flex; align-items:center; justify-content:space-between; margin-top: 20px;
+    padding: 12px 14px; background: var(--bg-2); border:1px solid var(--border); border-radius: var(--radius-sm);
+    width:100%;
+  }
+  .toggle-row .lbl { font-size: 13px; color: var(--text-dim); display:flex; align-items:center; gap:9px; }
+  .switch { position:relative; width: 42px; height: 24px; border-radius: 999px; background: var(--surface-2); cursor:pointer; transition: background .2s; flex-shrink:0; }
+  .switch::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:var(--text); transition: transform .2s var(--ease); }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { transform: translateX(18px); background: var(--accent-ink); }
+
+  .takeover {
+    position: fixed; inset: 0; z-index: 100;
+    background:
+      radial-gradient(800px 560px at 50% 35%, rgba(134,165,99,.06), transparent 65%),
+      var(--bg);
+    display: none; flex-direction: column; align-items:center; justify-content:center;
+    text-align:center; padding: 40px;
+  }
+  .takeover.active { display:flex; animation: takeoverIn .5s var(--ease); }
+  @keyframes takeoverIn { from { opacity:0; } to { opacity:1; } }
+
+  .to-eyebrow { font-size: 13px; text-transform:uppercase; letter-spacing:.18em; color: var(--accent); margin-bottom: 18px; font-weight:700; }
+  .to-headline { font-size: 38px; font-weight: 800; letter-spacing:-.02em; margin-bottom: 14px; line-height:1.08; }
+  .to-next { font-size: 16.5px; color: var(--text-dim); margin-bottom: 40px; }
+  .to-next b { color: var(--text); }
+
+  .grace-ring { position: relative; width: 150px; height:150px; margin-bottom: 36px; }
+  .grace-ring svg { transform: rotate(-90deg); }
+  .grace-track { fill:none; stroke: var(--surface-2); stroke-width: 6; stroke-linecap: round; }
+  .grace-prog { fill:none; stroke: var(--accent); stroke-width: 6; stroke-linecap:round; transition: stroke-dashoffset 1s linear; }
+  .grace-num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:54px; font-weight:800; }
+  .grace-label { font-size: 12px; color: var(--text-faint); letter-spacing:.1em; text-transform:uppercase; margin-bottom: 30px; }
+
+  .pulse-ring { position:absolute; inset:-5px; border-radius:50%; border:1.5px solid var(--accent); opacity:0; }
+  .grace-ring.done .pulse-ring { animation: pulseRing 2.2s ease-out infinite; }
+  @keyframes pulseRing { 0%{opacity:.5; transform:scale(1);} 100%{opacity:0; transform:scale(1.18);} }
+
+  .btn-confirm {
+    background: var(--accent); color: var(--accent-ink); font-size: 17px; font-weight:700;
+    padding: 0 48px; height: 56px; border-radius: 999px; border:none; cursor:pointer; font-family:inherit;
+    opacity: .4; pointer-events:none;
+    transition: opacity .45s var(--ease), transform .2s var(--ease);
+  }
+  .btn-confirm.ready { opacity:1; pointer-events:auto; }
+  .btn-confirm.ready:hover { transform: translateY(-2px); filter: brightness(1.08); }
+  .to-confirm-hint { font-size:12px; color: var(--text-faint); margin-top:16px; height:16px; }
+
+  .complete-wrap { text-align:center; padding: 20px 0; }
+  .complete-check {
+    width: 88px; height:88px; border-radius:50% 50% 50% 10px; margin: 0 auto 24px;
+    background: var(--accent-soft); display:flex; align-items:center; justify-content:center;
+    border: 1.5px solid var(--accent);
+  }
+  .complete-check svg { stroke: var(--accent); }
+
+  .mocknav {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    display:flex; align-items:center; gap:6px; z-index:200;
+    background: rgba(26,33,20,.94); backdrop-filter: blur(10px);
+    border:1px solid var(--border); border-radius: 999px; padding: 6px;
+    box-shadow: 0 10px 34px -14px rgba(0,0,0,.6);
+  }
+  .mocknav .mn-label { font-size:10px; color: var(--text-faint); text-transform:uppercase; letter-spacing:.1em; padding: 0 8px 0 12px; }
+  .mocknav button {
+    background:none; border:none; color: var(--text-dim); font-family:inherit;
+    font-size: 12.5px; font-weight:500; padding: 7px 13px; border-radius: 999px; cursor:pointer;
+    transition: all .18s;
+  }
+  .mocknav button:hover { color: var(--text); background: var(--surface-2); }
+  .mocknav button.active { background: var(--accent); color: var(--accent-ink); font-weight:600; }
+
+  .speed-toggle {
+    position: fixed; bottom: 18px; right: 18px; z-index:200;
+    background: rgba(26,33,20,.94); backdrop-filter: blur(10px);
+    border:1px solid var(--border); border-radius: 10px; padding: 8px 12px;
+    font-size: 11px; color: var(--text-faint); cursor:pointer; user-select:none;
+    display:flex; align-items:center; gap:8px;
+  }
+  .speed-toggle:hover { color: var(--text-dim); }
+  .speed-toggle b { color: var(--accent); }
+
+  .back-link {
+    position: fixed; top: 18px; left: 18px; z-index:200;
+    font-size:12px; color: var(--text-dim); font-weight:500;
+    text-decoration:none; background: rgba(26,33,20,.94); border:1px solid var(--border);
+    padding: 8px 14px; border-radius: 999px; backdrop-filter: blur(10px);
+  }
+  .back-link:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<a class="back-link" href="compare.html">← Back to comparison</a>
+
+<div class="window state-work" id="window">
+  <div class="ambient-bar" id="ambientBar"><div class="fill" id="ambientFill"></div></div>
+  <div class="ambient-note">always-on-top</div>
+
+  <div class="titlebar">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span class="app-name"><span class="brand-mark"></span>PomPom</span>
+  </div>
+
+  <section class="view active" id="view-config">
+    <div class="view-title">New session</div>
+    <div class="field">
+      <label>Pomodoros</label>
+      <div class="stepper">
+        <button onclick="changeCount(-1)">–</button>
+        <span class="val tabular" id="countVal">4</span>
+        <button onclick="changeCount(1)">+</button>
+      </div>
+    </div>
+    <div class="duration-row">
+      <div class="field">
+        <label>Work</label>
+        <div class="num-input"><input id="workDur" type="number" value="25" min="1" /><span class="unit">min</span></div>
+      </div>
+      <div class="field">
+        <label>Rest</label>
+        <div class="num-input"><input id="restDur" type="number" value="5" min="1" /><span class="unit">min</span></div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Task per pomodoro</label>
+      <div class="steps-list" id="stepsList"></div>
+    </div>
+    <div class="field">
+      <label>Templates</label>
+      <div class="template-bar" id="templateBar">
+        <span class="chip" onclick="loadTemplate('deep')">Deep work · 4×50/10</span>
+        <span class="chip" onclick="loadTemplate('classic')">Classic · 4×25/5</span>
+        <span class="chip add" onclick="saveTemplate()">+ Save current</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="startSession()">Start session</button>
+    <p class="hint">Between every step, PomPom takes over the screen with a short grace countdown — you confirm before the next step begins.</p>
+  </section>
+
+  <section class="view" id="view-timer">
+    <div class="timer-wrap">
+      <div class="step-badge" id="stepBadge"><span class="pulse-dot"></span><span id="stepBadgeText">Work</span></div>
+      <div class="task-label" id="taskLabel">Task A</div>
+      <div class="ring-wrap">
+        <svg width="240" height="240" viewBox="0 0 240 240">
+          <circle class="ring-track" cx="120" cy="120" r="110"></circle>
+          <circle class="ring-prog"  cx="120" cy="120" r="110" id="ringProg"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-time tabular" id="ringTime">25:00</div>
+          <div class="ring-sub" id="ringSub">Pomodoro 1 of 4</div>
+        </div>
+      </div>
+      <div class="sequence" id="sequence"></div>
+      <div class="seq-caption" id="seqCaption">Session progress</div>
+      <div class="next-up" id="nextUp">Next: <b>Rest · 5 min</b></div>
+      <div class="controls">
+        <button class="btn btn-ghost" id="pauseBtn" onclick="togglePause()">Pause</button>
+        <button class="btn btn-ghost" onclick="skipStep()">Skip →</button>
+        <button class="btn btn-ghost icon-btn" title="Stop session" onclick="stopSession()">■</button>
+      </div>
+      <div class="toggle-row">
+        <span class="lbl"><span class="brand-mark" style="width:12px;height:12px;"></span>Ambient meter bar</span>
+        <div class="switch" id="ambientSwitch" onclick="toggleAmbient()"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-done">
+    <div class="complete-wrap">
+      <div class="complete-check">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <div class="task-label" style="margin-bottom:8px;">Session complete</div>
+      <p class="hint" style="margin-bottom:24px;" id="doneSummary">4 pomodoros · 1h 40m focused</p>
+      <button class="btn btn-primary" onclick="showView('config')">New session</button>
+    </div>
+  </section>
+
+  <div class="takeover state-rest" id="takeover">
+    <div class="to-eyebrow" id="toEyebrow">Step change</div>
+    <div class="to-headline" id="toHeadline">Time for a break</div>
+    <div class="to-next" id="toNext">Up next: <b>Rest · 5 min</b></div>
+    <div class="grace-ring" id="graceRing">
+      <div class="pulse-ring"></div>
+      <svg width="150" height="150" viewBox="0 0 150 150">
+        <circle class="grace-track" cx="75" cy="75" r="68"></circle>
+        <circle class="grace-prog"  cx="75" cy="75" r="68" id="graceProg"></circle>
+      </svg>
+      <div class="grace-num tabular" id="graceNum">5</div>
+    </div>
+    <div class="grace-label" id="graceLabel">Get ready…</div>
+    <button class="btn-confirm" id="confirmBtn" onclick="confirmStep()">Confirm &amp; continue</button>
+    <div class="to-confirm-hint" id="confirmHint"></div>
+  </div>
+</div>
+
+<div class="mocknav">
+  <span class="mn-label">Mock</span>
+  <button data-nav="config" class="active" onclick="showView('config')">Config</button>
+  <button data-nav="timer" onclick="showView('timer')">Timer</button>
+  <button data-nav="takeover" onclick="demoTakeover()">Takeover</button>
+  <button data-nav="done" onclick="showView('done')">Complete</button>
+</div>
+<div class="speed-toggle" id="speedToggle" onclick="toggleSpeed()">demo speed: <b id="speedLabel">fast</b></div>
+
+<script>
+const LABELS_DEFAULT = ['Task A','Task B','Task C','Task D','Task E','Task F','Task G','Task H'];
+let cfg = { count: 4, work: 25, rest: 5, labels: ['Task A','Task B','Task C','Task D'] };
+let timeline = [], curIdx = 0, remaining = 0, running = false, paused = false, tickHandle = null, fast = true, ambientOn = false;
+const RING_R = 110, RING_C = 2 * Math.PI * RING_R;
+const GRACE_R = 68, GRACE_C = 2 * Math.PI * GRACE_R;
+document.getElementById('ringProg').style.strokeDasharray = RING_C;
+document.getElementById('graceProg').style.strokeDasharray = GRACE_C;
+
+function renderSteps() {
+  const list = document.getElementById('stepsList');
+  list.innerHTML = '';
+  for (let i = 0; i < cfg.count; i++) {
+    const row = document.createElement('div');
+    row.className = 'step-row';
+    row.innerHTML = `<span class="step-index">${i+1}</span><input value="${cfg.labels[i] ?? ''}" placeholder="Task ${i+1}" oninput="cfg.labels[${i}]=this.value" /><span class="work-min">${document.getElementById('workDur').value}m</span>`;
+    list.appendChild(row);
+  }
+}
+function changeCount(delta) {
+  cfg.count = Math.max(1, Math.min(8, cfg.count + delta));
+  document.getElementById('countVal').textContent = cfg.count;
+  while (cfg.labels.length < cfg.count) cfg.labels.push(LABELS_DEFAULT[cfg.labels.length] || `Task ${cfg.labels.length+1}`);
+  renderSteps();
+}
+document.getElementById('workDur').addEventListener('input', renderSteps);
+function loadTemplate(name) {
+  if (name === 'deep')    cfg = { count:4, work:50, rest:10, labels:['Writing','Writing','Review','Planning'] };
+  if (name === 'classic') cfg = { count:4, work:25, rest:5,  labels:['Task A','Task B','Task C','Task D'] };
+  syncConfigInputs();
+}
+function saveTemplate() {
+  const bar = document.getElementById('templateBar');
+  const chip = document.createElement('span');
+  const name = `Custom · ${cfg.count}×${document.getElementById('workDur').value}/${document.getElementById('restDur').value}`;
+  chip.className = 'chip'; chip.textContent = name; chip.style.borderColor = 'var(--accent)';
+  bar.insertBefore(chip, bar.querySelector('.chip.add'));
+}
+function syncConfigInputs() {
+  document.getElementById('countVal').textContent = cfg.count;
+  document.getElementById('workDur').value = cfg.work;
+  document.getElementById('restDur').value = cfg.rest;
+  renderSteps();
+}
+function startSession() {
+  cfg.work = +document.getElementById('workDur').value || 25;
+  cfg.rest = +document.getElementById('restDur').value || 5;
+  timeline = [];
+  for (let i = 0; i < cfg.count; i++) {
+    timeline.push({ type:'work', label: cfg.labels[i] || `Task ${i+1}`, mins: cfg.work, pomoIndex: i });
+    if (i < cfg.count - 1) timeline.push({ type:'rest', label:'Rest', mins: cfg.rest, pomoIndex: i });
+  }
+  curIdx = 0; renderSequence(); enterStep(0, true); showView('timer');
+}
+function renderSequence() {
+  const seq = document.getElementById('sequence');
+  seq.innerHTML = '';
+  timeline.forEach((step, i) => {
+    const seg = document.createElement('div');
+    seg.className = 'seg' + (step.type === 'rest' ? ' rest-seg' : '');
+    seg.dataset.i = i;
+    seg.innerHTML = '<div class="seg-fill"></div>';
+    seq.appendChild(seg);
+  });
+}
+function updateSequence() {
+  document.querySelectorAll('.seg').forEach((seg) => {
+    const i = +seg.dataset.i;
+    seg.classList.remove('done','current');
+    seg.querySelector('.seg-fill').style.width = '0%';
+    if (i < curIdx) seg.classList.add('done');
+    else if (i === curIdx) seg.classList.add('current');
+  });
+}
+function enterStep(idx, fromStart) {
+  curIdx = idx;
+  const step = timeline[idx];
+  const isWork = step.type === 'work';
+  const win = document.getElementById('window');
+  win.classList.toggle('state-work', isWork);
+  win.classList.toggle('state-rest', !isWork);
+  document.getElementById('stepBadgeText').textContent = isWork ? 'Work' : 'Rest';
+  document.getElementById('taskLabel').textContent = step.label;
+  const pomoNum = step.pomoIndex + 1;
+  document.getElementById('ringSub').textContent = isWork ? `Pomodoro ${pomoNum} of ${cfg.count}` : `Break after pomodoro ${pomoNum}`;
+  const next = timeline[idx+1];
+  document.getElementById('nextUp').innerHTML = next ? `Next: <b>${next.type==='work' ? next.label : 'Rest'} · ${next.mins} min</b>` : `Next: <b>Session complete</b>`;
+  updateSequence();
+  win.classList.remove('pulsing'); void win.offsetWidth; win.classList.add('pulsing');
+  remaining = step.mins * 60;
+  updateRing();
+  running = true; paused = false;
+  document.getElementById('pauseBtn').textContent = 'Pause';
+  if (!tickHandle) tickHandle = setInterval(tick, fast ? 33 : 1000);
+}
+function tick() {
+  if (!running || paused) return;
+  remaining -= 1;
+  if (remaining < 0) { stepFinished(); return; }
+  updateRing();
+}
+function updateRing() {
+  const step = timeline[curIdx];
+  const total = step.mins * 60;
+  const frac = total ? remaining / total : 0;
+  document.getElementById('ringProg').style.strokeDashoffset = RING_C * (1 - frac);
+  document.getElementById('ringTime').textContent = fmt(remaining);
+  const cur = document.querySelector(`.seg[data-i="${curIdx}"] .seg-fill`);
+  if (cur) cur.style.width = ((1 - frac) * 100) + '%';
+  document.getElementById('ambientFill').style.width = ((1 - frac) * 100) + '%';
+}
+function fmt(s) { s = Math.max(0, s); const m = Math.floor(s / 60), ss = s % 60; return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
+function stepFinished() { running = false; if (curIdx + 1 >= timeline.length) { showComplete(); return; } showTakeover(curIdx + 1); }
+function togglePause() { paused = !paused; document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause'; }
+function skipStep() { running = false; if (curIdx + 1 >= timeline.length) { showComplete(); return; } showTakeover(curIdx + 1); }
+function stopSession() { running = false; clearInterval(tickHandle); tickHandle = null; showView('config'); }
+let pendingIdx = null, graceHandle = null;
+const GRACE_SECS = 5;
+function showTakeover(nextIdx) {
+  pendingIdx = nextIdx;
+  const next = timeline[nextIdx];
+  const isWork = next.type === 'work';
+  const to = document.getElementById('takeover');
+  to.classList.toggle('state-work', isWork);
+  to.classList.toggle('state-rest', !isWork);
+  document.getElementById('toEyebrow').textContent = isWork ? 'Break over' : 'Nice work';
+  document.getElementById('toHeadline').textContent = isWork ? 'Back to focus' : 'Time for a break';
+  document.getElementById('toNext').innerHTML = isWork ? `Up next: <b>${next.label} · ${next.mins} min</b>` : `Up next: <b>Rest · ${next.mins} min</b>`;
+  const confirmBtn = document.getElementById('confirmBtn');
+  confirmBtn.classList.remove('ready');
+  document.getElementById('confirmHint').textContent = '';
+  document.getElementById('graceRing').classList.remove('done');
+  document.getElementById('graceLabel').textContent = 'Get ready…';
+  to.classList.add('active');
+  let g = GRACE_SECS;
+  document.getElementById('graceNum').textContent = g;
+  document.getElementById('graceProg').style.strokeDashoffset = 0;
+  clearInterval(graceHandle);
+  graceHandle = setInterval(() => {
+    g -= 1;
+    if (g <= 0) {
+      clearInterval(graceHandle);
+      document.getElementById('graceNum').textContent = '0';
+      document.getElementById('graceProg').style.strokeDashoffset = GRACE_C;
+      document.getElementById('graceLabel').textContent = 'Confirm to continue';
+      document.getElementById('graceRing').classList.add('done');
+      confirmBtn.classList.add('ready');
+      document.getElementById('confirmHint').textContent = 'Waiting for you — the timer stays paused until you confirm.';
+      return;
+    }
+    document.getElementById('graceNum').textContent = g;
+    document.getElementById('graceProg').style.strokeDashoffset = GRACE_C * (1 - g / GRACE_SECS);
+  }, fast ? 400 : 1000);
+}
+function confirmStep() { document.getElementById('takeover').classList.remove('active'); clearInterval(graceHandle); enterStep(pendingIdx, false); }
+function demoTakeover() {
+  if (!timeline.length) startSessionSilently();
+  showView('timer');
+  const nextIdx = Math.min(curIdx + 1, timeline.length - 1);
+  showTakeover(nextIdx || 1);
+}
+function startSessionSilently() {
+  cfg.work = +document.getElementById('workDur').value || 25;
+  cfg.rest = +document.getElementById('restDur').value || 5;
+  timeline = [];
+  for (let i = 0; i < cfg.count; i++) {
+    timeline.push({ type:'work', label: cfg.labels[i] || `Task ${i+1}`, mins: cfg.work, pomoIndex: i });
+    if (i < cfg.count - 1) timeline.push({ type:'rest', label:'Rest', mins: cfg.rest, pomoIndex: i });
+  }
+  curIdx = 0; renderSequence(); enterStep(0, true); running = false;
+}
+function showComplete() {
+  clearInterval(tickHandle); tickHandle = null;
+  const totalMin = cfg.count * cfg.work;
+  const h = Math.floor(totalMin/60), m = totalMin%60;
+  document.getElementById('doneSummary').textContent = `${cfg.count} pomodoros · ${h?h+'h ':''}${m}m focused`;
+  showView('done');
+}
+function toggleAmbient() {
+  ambientOn = !ambientOn;
+  document.getElementById('ambientSwitch').classList.toggle('on', ambientOn);
+  document.getElementById('ambientBar').classList.toggle('on', ambientOn);
+}
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (name !== 'takeover') document.getElementById('takeover').classList.remove('active');
+  document.querySelectorAll('.mocknav button').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
+}
+function toggleSpeed() {
+  fast = !fast;
+  document.getElementById('speedLabel').textContent = fast ? 'fast' : 'real';
+  if (tickHandle) { clearInterval(tickHandle); tickHandle = setInterval(tick, fast ? 33 : 1000); }
+}
+syncConfigInputs();
+</script>
+</body>
+</html>

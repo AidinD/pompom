@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PomPom — design variants</title>
+<style>
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body {
+    background: #14161a; color: #e6e8ec;
+    font-family: -apple-system, 'Segoe UI', Inter, sans-serif;
+    min-height: 100vh; display:flex; align-items:center; justify-content:center;
+    padding: 40px 20px;
+  }
+  .wrap { max-width: 900px; width:100%; }
+  h1 { font-size: 22px; margin-bottom: 8px; }
+  p.sub { color: #9aa3b2; font-size: 14px; margin-bottom: 32px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+  a.card {
+    display:block; text-decoration:none; color:inherit;
+    background: #191c21; border: 1px solid #2a303b; border-radius: 14px;
+    padding: 22px; transition: transform .15s, border-color .15s;
+  }
+  a.card:hover { transform: translateY(-3px); border-color: #4a5568; }
+  .swatch { display:flex; gap:6px; margin-bottom: 16px; }
+  .swatch span { width: 22px; height: 22px; border-radius: 6px; }
+  .card h2 { font-size: 16px; margin-bottom: 6px; }
+  .card p { font-size: 13px; color: #9aa3b2; line-height:1.5; }
+  .tag { display:inline-block; margin-top:12px; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#5c6472; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>PomPom — design variants</h1>
+  <p class="sub">Three clickable mocks, same flow (config → timer → takeover → complete). Pick one, or mix elements.</p>
+  <div class="grid">
+    <a class="card" href="index.html">
+      <div class="swatch"><span style="background:#0d0f13;border:1px solid #333"></span><span style="background:#3ddc97"></span><span style="background:#ffab4d"></span></div>
+      <h2>A — Neon Dark (original)</h2>
+      <p>Deep charcoal, glowing teal/amber accent, drop-shadow glow on the ring and confirm button. High energy, most "gamer-adjacent" of the three.</p>
+      <span class="tag">Current default</span>
+    </a>
+    <a class="card" href="variant-b-paper.html">
+      <div class="swatch"><span style="background:#1b1712;border:1px solid #3d3324"></span><span style="background:#d99567"></span><span style="background:#9db179"></span></div>
+      <h2>B — Warm Paper (Dark)</h2>
+      <p>Dark kraft-paper background, serif headline type, muted clay (work) / sage (rest). No glow — warm and calm instead of cold.</p>
+      <span class="tag">Dark, warm</span>
+    </a>
+    <a class="card" href="variant-d-nature.html">
+      <div class="swatch"><span style="background:#11150e;border:1px solid #2c3722"></span><span style="background:#86a563"></span><span style="background:#c6883f"></span></div>
+      <h2>D — Nature</h2>
+      <p>Deep forest dark theme, organic rounded shapes, fern green (work) / bark amber (rest). Gentle grow-in on step change instead of a pulse.</p>
+      <span class="tag">Dark, organic</span>
+    </a>
+  </div>
+</div>
+</body>
+</html>
