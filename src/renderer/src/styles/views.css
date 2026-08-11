@@ -242,6 +242,36 @@
   color: var(--text-faint);
 }
 
+/* theme picker (swatch row) */
+.theme-picker {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.swatch {
+  width: 34px;
+  height: 34px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+  display: inline-flex;
+}
+.swatch:hover {
+  border-color: var(--text-faint);
+}
+.swatch.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.swatch-fill {
+  flex: 1;
+  border-radius: 999px;
+  display: block;
+}
+
 /* buttons */
 .btn {
   display: inline-flex;

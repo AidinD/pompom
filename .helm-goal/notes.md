@@ -14,55 +14,7 @@ This worktree is at
 
 [... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
 
-THE FOUR SURFACES (all in index.html — this is the behavioral contract)
-
-### Shared state model (from inline JS, lines 502-816)
-```
-cfg = { count:4, work:25, rest:5, labels:['Task A','Task B','Task C','Task D'] }
-LABELS_DEFAULT = ['Task A'..'Task H']
-timeline = [{type:'work'|'rest', label, mins, pomoIndex}]
-```
-- `changeCount(delta)`: clamp count to **1..8**; grow `labels` array with
-  `LABELS_DEFAULT[i] || 'Task '+(i+1)` when count increases (never shrinks the
-  stored labels — extra labels beyond count are just unused).
-- **Timeline build**: for i in 0..count-1: push work step; if i < count-1 push a
-  rest step. => work,rest,work,rest,...,work. **No trailing rest** after last
-  pomodoro. Rest steps carry `pomoIndex:i` (the pomo they follow). Work labels =
-  `cfg.labels[i]`.
-
-### 1. CONFIG VIEW (`#view-config`)
-- Title "New session".
-- Pomodoro stepper: `– [count] +`, buttons call changeCount(±1), clamp 1..8.
-- Work/Rest number inputs (min=1), default 25 / 5, unit "min".
-- "Task per pomodoro": one `.step-row` per count with numbered `.step-index`
-  badge, editable input (placeholder `Task {i+1}`, value `cfg.labels[i]`), and a
-  `{workDur}m` hint on the right. Re-renders on count change AND on workDur input.
-- Templates: chips. Two seed templates in mock:
-  - `deep`   => {count:4, work:50, rest:10, labels:['Writing','Writing','Review','Planning']}, chip "Deep work · 4×50/10"
-  - `classic`=> {count:4, work:25, rest:5,  labels:['Task A','Task B','Task C','Task D']}, chip "Classic · 4×25/5"
-  - `+ Save current` (dashed chip) => saveTemplate(): name `Custom · {count}×{work}/{rest}`.
-  In the REAL app these must persist to disk & reload as clickable chips.
-- "Start session" primary button => startSession(): reads work/rest inputs,
-  builds timeline, renderSequence(), enterStep(0), showView('timer').
-- Hint copy: "Between every step, PomPom takes over the screen with a short
-  grace countdown — you confirm before the next step begins."
-
-### 2. TIMER VIEW (`#view-timer`)
-- `.step-badge`: pulsing dot + text "Work"/"Rest", colored with `--accent`.
-- `.task-label`: current step.label (big).
-- **Ring**: SVG 240×240, `<circle r=110>` track + prog. `RING_C = 2π·110`.
-  `strokeDasharray = RING_C`; `strokeDashoffset = RING_C * (1 - frac)` where
-  `frac = remaining/total`. svg rotated -90deg. Prog stroke = --accent + glow.
-- Center: `.ring-time` = `fmt(remaining)` (MM:SS, zero-padded); `.ring-sub` =
-  work→`Pomodoro {pomoNum} of {count}`, rest→`Break after pomodoro {pomoNum}`
-  (pomoNum = pomoIndex+1).
-- **Sequence strip** (`#sequence`): one `.seg` per timeline step; rest steps get
-  `.rest-seg` (narrower, dimmer). States: `.done` (i<curIdx), `.current`
-  (i===curIdx). Current seg has `.seg-fill` whose width = **elapsed** %
-  `((1-frac)*100)%`. Caption "Session progress".
-- **Next-up**: `Next: <b>{next work label | 'Rest'} · {mins} min</b>`, or
-  `Next: <b>Session complete</b>` on last step.
-- **Controls**: Pause/Resume (togglePause), `Skip →` (skipStep → jumps straight
+use/Resume (togglePause), `Skip →` (skipStep → jumps straight
   to takeover for next step), Stop `■` (stopSession → back to config).
 - **Toggle row**: "Ambient meter bar" switch → toggleAmbient().
 - **Ring pulse on step change**: enterStep removes+reflows+adds `.pulsing` on
@@ -280,3 +232,23 @@ Key learnings:
 - ConfigView currently owns cfg entirely as LOCAL state (count/work/rest/labels); step 4 (templates + theme picker + persistence) must lift or wrap this state so loading a template can reset the work/rest string inputs and persist lastConfig/theme to disk. Duration inputs are kept as strings to allow smooth editing; resolved to numbers with 25/5 fallback on start.
 - Templates section and theme picker are intentionally NOT in the config view yet (deferred to step 4). App applies a fixed DEFAULT_THEME='neon' work state; the mock's fake macOS traffic-light dots were intentionally omitted (OS provides real chrome) — only a brand-mark + 'PomPom' titlebar is rendered.
 - Mock quirk noted: mock's .step-index uses `var(--accent-work, #3ddc97)` (undefined var → always green); I deliberately used `var(--accent)` instead so the badge matches each theme's accent. Next step is #4 (templates persistence + theme picker), then #5 timer engine hook.
+
+## Iteration 6 — success
+
+Summary: Implement templates persistence + theme picker (plan step 4): durable JSON store, store:get/set IPC bridge, template chips, and a persisted theme swatch row
+
+Key changes:
+- Added src/shared/store.ts (StoreData: templates/lastConfig/theme/ambientEnabled + DEFAULT_STORE) and src/main/store.ts (cached read/write to app.getPath('userData')/pompom-store.json, merges over defaults)
+- Registered store:get/store:set ipcMain.handle in src/main/index.ts (via registerStoreIpc on app ready) and exposed window.pompom.store.get/set through preload contextBridge (ipcRenderer.invoke)
+- Reworked ConfigView.tsx to take initialCfg/templates/theme + callbacks; renders template chips (click loads), a dashed '+ Save current' chip (Custom · N×W/R), and a theme-picker swatch row (work/rest split gradient, selected ring)
+- Reworked App.tsx to load the store on mount, own templates/theme/cfg, remount ConfigView via a cfgKey on template load, and persist lastConfig on Start, templates on save, theme on pick; coerceTheme() narrows the persisted theme string to ThemeId
+- Added .theme-picker/.swatch/.swatch-fill styles to views.css; verified typecheck + build + a live npm run dev launch (no crash, store IPC registered)
+
+Key learnings:
+- Plan step 4 DONE + verified (typecheck, build, and a real launch all pass). Next is step 5: the wall-clock timer engine hook (Date.now()-delta based, tracks stepEndsAt + accumulated paused ms), then step 6 timer view. App.handleStart currently just buildTimeline + console.log — replace that stub with the engine/timer view.
+- Persistence store lives at src/shared/store.ts (StoreData + DEFAULT_STORE) and src/main/store.ts. main/preload import it via RELATIVE path '../shared/store' (NOT the @shared alias — that alias is only wired in the renderer vite config + tsconfig.web.json; tsconfig.node.json just includes src/shared/**/*). ambientEnabled already exists in StoreData for the step-9 ambient toggle to persist.
+- Renderer accesses persistence via window.pompom.store.get()/set(partial) (Promise-based, ipcRenderer.invoke). preload/index.d.ts types it automatically from `typeof api` so no manual d.ts edit was needed. store.set does a partial merge, so pass only changed keys.
+- Config state pattern: App owns cfg/theme/templates; ConfigView is remounted (React key=cfgKey, bumped on template load AND after the async store load) to re-seed its local string-buffered work/rest state. When the timer view is added, don't break this remount trick.
+- LAUNCH-CLEANUP RECIPE (avoids blanket taskkill electron.exe that kills the user's VS Code/Claude): the dev tree is cmd.exe 'electron-vite dev' -> node electron-vite -> electron.exe (+3 child electron). Find them with PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-308c740c', then `taskkill /F /T /PID <the electron-vite cmd.exe pid>` to kill just that tree. Verified this leaves other Electron apps alone.
+- Backgrounding gotcha: `npm run dev >log 2>&1 &` inside a Bash run_in_background call makes the wrapper 'complete' immediately (exit 0) while npm keeps running detached — the npm output goes to the redirected log file, not the task output file. Read the redirect target to see real dev output.
+- The mock has NO theme picker (each mock file is a single fixed theme); the swatch-row picker in config is my own design per the goal, using THEMES[].swatchWork/swatchRest from themes.ts for the split-gradient swatches.
