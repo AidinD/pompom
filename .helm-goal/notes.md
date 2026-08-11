@@ -12,19 +12,18 @@ DECISIONS.md / PLAN.md (Fas 3 Point 11) in the Helm repo for why.
 This worktree is at
 `D:/Repo/Tools/PomPom-worktrees/goal-308c74
 
-[... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
+## Preserved key learnings (from truncated earlier iterations)
 
-/src/hooks/useTimerEngine.ts: a React hook owning timeline/curIdx and per-step timing from Date.now() deltas (endsAt + frozen pausedAt), publishing a TimerSnapshot {phase, remaining, total, frac, elapsedFrac, paused, pendingIdx, ...} on a 200ms tick; actions start/pause/resume/togglePause/skip/stop/confirm and callbacks onEnterStep/onStepPending/onComplete/onStop
-- Step-finish contract mirrors the mock: on time-out it STOPS ticking, and either completes (last step) or enters phase 'awaiting' signalling the takeover for curIdx+1 — it never auto-advances; only confirm() enters the pending step
-- Added fmt(s) helper to src/shared/model.ts (clamp >=0, MM:SS zero-padded) ported from the mock, for reuse by the timer/takeover/ambient views
-- Verified npm run typecheck and npm run build both pass
-
-Key learnings:
 - Plan step 5 DONE (typecheck + build pass). Hook lives at src/renderer/src/hooks/useTimerEngine.ts; it is NOT yet imported anywhere (build still shows 35 modules / tree-shaken out) — that's intentional. Step 6 (timer view) must call useTimerEngine in App and render its snapshot, replacing App.handleStart's console.log stub with engine.start(cfg).
 - Timing internals are refs (endsAtRef/pausedAtRef/curIdxRef/phaseRef/pendingIdxRef); the interval calls a stable wrapper that reads tickRef.current so it never goes stale. remaining uses Math.ceil so the display counts whole seconds like the mock; frac = remaining/total, elapsedFrac = 1-frac (sequence strip + ambient use ELAPSED).
 - Phase model: 'idle'|'running'|'awaiting'|'complete'. skip() routes through stepFinished() -> 'awaiting' (goes to takeover for next step), matching the mock; it does NOT jump straight into the next step. confirm() only valid in 'awaiting'. stop() resets to idle and fires onStop.
 - Pure renderer/TS change this iteration; did NOT run npm run dev (reserved for step 12). When launching dev later, use Bash run_in_background and kill by the electron-vite cmd.exe PID tree (match commandline 'goal-308c740c') — never blanket taskkill electron.exe (kills the user's other Electron apps).
-- App.tsx currently applies a fixed 'work' state to document root; step 6 must toggle state-work/state-rest on #window from the engine's current step type for the accent hue shift, and pulse the ring by toggling .pulsing on #window with a forced reflow (void el.offsetWidth) on step change (onEnterStep is the natural hook).
+- App.tsx currently applies a fixed 'work' state to document root; step 6 must toggle state-work/state-rest on #window from the engine's current step type for the accent hue shift, and pulse the ring by toggling .pulsing o
+
+
+[... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
+
+n #window with a forced reflow (void el.offsetWidth) on step change (onEnterStep is the natural hook).
 
 ## Iteration 8 — success
 
@@ -154,3 +153,21 @@ Key learnings:
 - Pure-CSS change: did NOT launch dev (consistent with iter 2). typecheck+build are sufficient verification for CSS-only edits; a human-visible launch remains the only way to confirm actual ambient-strip rendering but nothing here alters window/IPC behavior. node_modules was already present (no npm install needed).
 - git shows .helm-goal/notes.md as modified — that is the orchestrator's automatic notes compaction, not a code edit; only views.css was my change.
 - The goal is effectively complete; remaining potential future work is only genuinely-deferred scope (packaging/distribution, real app icon, configurable grace period) documented in PLAN.md's Deferred list — no open plan steps remain.
+
+## Iteration 6 — success
+
+Summary: Verify completed PomPom v1 build: confirm typecheck + build pass, review aux-window IPC lifecycle for latent bugs, and confirm a clean dev launch (all 12 plan steps already done)
+
+Key changes:
+- No source changes needed — all 12 plan steps (scaffold through docs+sanity-launch) already implemented and merged
+- Ran npm run typecheck: passes with no errors
+- Ran npm run build: passes, 41 renderer modules, CSS 22.37 kB
+- Reviewed src/main/index.ts aux-window IPC lifecycle (takeover + ambient): destroyed-window guards on every webContents.send, clean teardown on main-window close — no latent bugs found
+- Launched npm run dev in background: booted cleanly ('start electron app...' with zero errors), then killed this worktree's process tree by PID (0 remaining)
+
+Key learnings:
+- GOAL IS COMPLETE: all 12 plan steps done, verified, and merged. No open implement work remains unless goal scope changes. Only genuinely-deferred scope is left (packaging/distribution, real app icon, configurable grace period) — documented in PLAN.md's Deferred list.
+- Reviewed the highest-risk area (main-process aux-window IPC fan-out) this iteration and found it solid: pull+push seeding for both takeover and ambient dodges the load race, every webContents.send is guarded by isDestroyed(), and mainWindow 'closed' closes both aux windows so nothing is orphaned.
+- Sanity-launch recipe still works: `npm run dev > /tmp/pompom-dev.log 2>&1 &` via Bash run_in_background (wrapper exits 0 immediately + spurious task-completed notification; real output in the redirect log — success shows 'start electron app...' with no errors, boots in ~1s).
+- Cleanup: PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-0a33a3aa', find the node.exe whose CommandLine matches 'electron-vite' (the root), then `taskkill /F /T /PID <root>`. The follow-up query may catch a few electron.exe PIDs mid-teardown — sleep 2s and re-check to confirm 0 remaining. Never blanket-kill electron.exe.
+- node_modules and out/ were already present this iteration (no npm install needed). git shows .helm-goal/notes.md as modified — that is the orchestrator's automatic notes compaction, not a code edit; no source files were touched.
