@@ -1,0 +1,46 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: #0d0f13;
+  color: #eef1f6;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.scaffold {
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.scaffold-card {
+  text-align: center;
+  padding: 32px 40px;
+  border: 1px solid #2a303b;
+  border-radius: 16px;
+  background: #191d25;
+}
+
+.scaffold-card h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.scaffold-card p {
+  margin: 4px 0;
+}
+
+.dim {
+  color: #9aa3b2;
+  font-size: 13px;
+}
