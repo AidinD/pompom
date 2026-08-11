@@ -14,31 +14,13 @@ This worktree is at
 
 ## Preserved key learnings (from truncated earlier iterations)
 
-- Plan step 5 DONE (typecheck + build pass). Hook lives at src/renderer/src/hooks/useTimerEngine.ts; it is NOT yet imported anywhere (build still shows 35 modules / tree-shaken out) — that's intentional. Step 6 (timer view) must call useTimerEngine in App and render its snapshot, replacing App.handleStart's console.log stub with engine.start(cfg).
-- Timing internals are refs (endsAtRef/pausedAtRef/curIdxRef/phaseRef/pendingIdxRef); the interval calls a stable wrapper that reads tickRef.current so it never goes stale. remaining uses Math.ceil so the display counts whole seconds like the mock; frac = remaining/total, elapsedFrac = 1-frac (sequence strip + ambient use ELAPSED).
-- Phase model: 'idle'|'running'|'awaiting'|'complete'. skip() routes through stepFinished() -> 'awaiting' (goes to takeover for next step), matching the mock; it does NOT jump straight into the next step. confirm() only valid in 'awaiting'. stop() resets to idle and fires onStop.
-- Pure renderer/TS change this iteration; did NOT run npm run dev (reserved for step 12). When launching dev later, use Bash run_in_background and kill by the electron-vite cmd.exe PID tree (match commandline 'goal-308c740c') — never blanket taskkill electron.exe (kills the user's other Electron apps).
-- App.tsx currently applies a fixed 'work' state to document root; step 6 must toggle state-work/state-rest on #window from the engine's current step type for the accent hue shift, and pulse the ring by toggling .pulsing o
+- Plan steps 6 AND 7 are DONE (timer view + complete view). Complete view was folded in because leaving the engine's 'complete' phase unrouted would render a blank window — they are the same running-session surface. Next is plan step 8: the takeover BrowserWindow (fullscreen+alwaysOnTop) for the 'awaiting' phase.
+- IMPORTANT gap for step 8: during phase 'awaiting' the TimerView currently renders the just-finished step frozen at 00:00 with NO confirm/advance path except the Stop button. The takeover window (step 8) must supply the grace countdown + Confirm-&-continue that calls engine.confirm() to enter the pending step. Wir
 
 
 [... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
 
-n #window with a forced reflow (void el.offsetWidth) on step change (onEnterStep is the natural hook).
-
-## Iteration 8 — success
-
-Summary: Implement timer + complete views (plan steps 6-7): wire useTimerEngine into App with phase routing, countdown ring, sequence strip, controls, and work/rest accent state
-
-Key changes:
-- Added src/renderer/src/views/TimerView.tsx: step badge, task label, 240x240 SVG countdown ring (r=110, dashoffset=RING_C*(1-frac)) with a one-shot pulse on step entry (via React key on the prog circle), sequence strip with elapsed-fill on the current segment, next-up hint, Pause/Resume + Skip + Stop controls, and the ambient-meter toggle row
-- Added src/renderer/src/views/CompleteView.tsx: check icon, 'Session complete', and '{count} pomodoros · {h}h {m}m focused' summary (totalMin=count*work) with a 'New session' button that stops the engine back to config
-- Rewrote App.tsx to host useTimerEngine, route by phase (idle->Config, running/awaiting->Timer, complete->Complete), derive work/rest state from the current step and apply it to BOTH document root (applyTheme) and the #window card class, persist ambientEnabled on toggle, and start the engine on session start
-- Ported the mock's timer + complete CSS (step-badge/dotPulse, ring-track/ring-prog/ringPulse, sequence/seg/seg-fill, next-up, controls/icon-btn, toggle-row/switch, complete-check) into src/renderer/src/styles/views.css using theme CSS vars
-- Verified: typecheck + build pass (38 modules) and a real npm run dev launch boots the app cleanly with no renderer errors; dev tree stopped by PID afterward
-
-Key learnings:
-- Plan steps 6 AND 7 are DONE (timer view + complete view). Complete view was folded in because leaving the engine's 'complete' phase unrouted would render a blank window — they are the same running-session surface. Next is plan step 8: the takeover BrowserWindow (fullscreen+alwaysOnTop) for the 'awaiting' phase.
-- IMPORTANT gap for step 8: during phase 'awaiting' the TimerView currently renders the just-finished step frozen at 00:00 with NO confirm/advance path except the Stop button. The takeover window (step 8) must supply the grace countdown + Confirm-&-continue that calls engine.confirm() to enter the pending step. Wire it off the engine's onStepPending callback (or watch phase==='awaiting' + pendingIdx in App).
+e it off the engine's onStepPending callback (or watch phase==='awaiting' + pendingIdx in App).
 - Pulse-on-step-start is done the React-idiomatic way: the .ring-prog circle has className 'ring-prog pulse' and key={curIdx}, so entering a new step remounts it and replays the one-shot ringPulse animation. Do NOT reintroduce the mock's imperative .window.pulsing + void offsetWidth reflow (it fights React re-renders every 200ms tick).
 - State (work/rest) is applied in TWO places by App: applyTheme(document.documentElement, theme, state) for the theme-scoped --accent hue overrides, AND className `window state-${state}` on #window for the .window.state-work/-rest box-shadow glow. state derives from engine.step?.type (defaults 'work' when idle so config/complete show primary accent).
 - The 1s-linear stroke-dashoffset transition on .ring-prog is correct even with 200ms engine ticks: remaining uses Math.ceil so frac only changes once per whole second, giving a smooth continuous sweep with no lag. Same for .seg-fill.
@@ -171,3 +153,21 @@ Key learnings:
 - Sanity-launch recipe still works: `npm run dev > /tmp/pompom-dev.log 2>&1 &` via Bash run_in_background (wrapper exits 0 immediately + spurious task-completed notification; real output in the redirect log — success shows 'start electron app...' with no errors, boots in ~1s).
 - Cleanup: PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-0a33a3aa', find the node.exe whose CommandLine matches 'electron-vite' (the root), then `taskkill /F /T /PID <root>`. The follow-up query may catch a few electron.exe PIDs mid-teardown — sleep 2s and re-check to confirm 0 remaining. Never blanket-kill electron.exe.
 - node_modules and out/ were already present this iteration (no npm install needed). git shows .helm-goal/notes.md as modified — that is the orchestrator's automatic notes compaction, not a code edit; no source files were touched.
+
+## Iteration 7 — success
+
+Summary: Verify completed PomPom v1 build: confirm typecheck + build pass, review aux-window IPC fan-out for latent bugs, and confirm a clean dev launch (all 12 plan steps already done)
+
+Key changes:
+- No source changes needed — all 12 plan steps (scaffold through docs+sanity-launch) are already implemented and merged
+- Ran npm run typecheck: passes with no errors
+- Ran npm run build: passes, 41 renderer modules transformed, CSS 22.37 kB, main 6.97 kB
+- Reviewed src/main/index.ts + src/renderer/src/App.tsx aux-window IPC lifecycle (takeover + ambient): destroyed-window guards on every webContents.send, pull+push seeding, teardown on main-window close — no latent bugs found
+- Launched npm run dev in background: booted to 'start electron app...' with zero errors, then killed this worktree's process tree by PID (node.exe 26020 + electron children, 0 remaining)
+
+Key learnings:
+- GOAL IS COMPLETE: all 12 plan steps done, verified, and merged. No open implement work remains unless goal scope changes. Only genuinely-deferred scope is left (packaging/distribution, real app icon, configurable grace period via GRACE_SECS) — documented in PLAN.md's Deferred list; do NOT add these without an explicit scope change.
+- Re-reviewed the highest-risk area (main-process aux-window IPC fan-out) and it is solid: pull+push seeding for both takeover (pendingTakeoverStep + takeover:get) and ambient (lastAmbientTick + ambient:get) dodges the load race; every webContents.send is guarded by isDestroyed(); mainWindow 'closed' closes both aux windows so nothing is orphaned; App.tsx skips ambient pushes while paused so the bar freezes.
+- Sanity-launch recipe still works: `npm run dev > /tmp/pompom-dev.log 2>&1 &` via Bash run_in_background (wrapper exits 0 immediately + a task-completed notification; real output is in the redirect log — success shows 'start electron app...' with no errors, dev server on :5173).
+- Cleanup that worked: PowerShell `Get-CimInstance Win32_Process | Where CommandLine -match 'goal-0a33a3aa' -and -match 'electron-vite'` to find the node.exe root (was 26020), then `taskkill /F /T /PID <root>`. Note: the PowerShell process itself can match the filter because its own CommandLine contains the literal strings — exclude `$_.ProcessId -ne $PID` on the verify query, and its self-terminate ERROR is harmless. Never blanket-kill electron.exe.
+- node_modules and out/ were already present this iteration (no npm install needed). git shows only .helm-goal/notes.md as modified — that is the orchestrator's automatic notes compaction, not a code edit; no source files were touched.
