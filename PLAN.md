@@ -2,8 +2,22 @@
 
 ## Current status
 
-Pre-mock.
-Next step: build a clickable HTML mock covering the timer view, the fullscreen takeover screen, and the session configuration view, before starting the Electron build.
+The Electron + React (TypeScript) app is built to full v1 scope. Implemented:
+electron-vite scaffold; the three-theme CSS-variable system (Neon Dark, Warm
+Paper Dark, Nature); the config view with per-pomodoro task labels, template
+save/load, and a theme picker; disk persistence of templates / last config /
+theme / ambient toggle (`pompom-store.json` in userData); the wall-clock timer
+engine (`Date.now()`-delta authority) with pause/resume/skip/stop; the timer
+and session-complete views; the fullscreen always-on-top takeover window with a
+grace countdown and a required Confirm (never auto-advances); and the optional
+frameless, transparent, click-through ambient meter bar, driven live over IPC.
+See [README.md](README.md) for how to run it.
+
+Deferred to later (not in v1):
+- Packaging / distribution (installer, code signing, auto-update).
+- A real application icon.
+- A configurable grace-period length (currently hard-coded `GRACE_SECS = 5`).
+- Any further visual polish and cross-platform support.
 
 ## Scope (v1)
 
