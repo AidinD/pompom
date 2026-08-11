@@ -231,3 +231,17 @@ Key learnings:
 - Timeline rule: work,rest,...,work with NO trailing rest; labels attach to work steps only; count clamped 1-8. Takeover must NOT auto-advance after 5s grace — requires explicit Confirm click.
 - Real app must derive remaining time from Date.now() deltas (not decrement counters). Mock's fast/demo-speed, .mocknav, .speed-toggle, .back-link are mock-only scaffolding — do not port.
 - Only 3 themes ship (Slate Mono dropped, Warm Paper is dark). Neon uses --accent-glow; Paper/Nature have no glow and use --accent-ink for on-accent text — parameterize on-accent text and glow as CSS vars across all themes.
+
+## Iteration 2 — success
+
+Summary: Write concrete 12-step PomPom implementation plan to .helm-goal/plan.md for the implement phase
+
+Key changes:
+- Created .helm-goal/plan.md with locked architecture decisions (electron-vite+React+TS, 3 BrowserWindows, main-renderer timer authority, hash routing, userData JSON persistence, GRACE_SECS=5)
+- Broke the goal into 12 small sequential implement steps: scaffold, theme CSS vars, config view, templates persistence, wall-clock timer engine, timer view, complete view, takeover window, ambient bar window, IPC fan-out, polish, docs+sanity launch
+- Included the shared timeline/cfg model and a behavior verification checklist
+
+Key learnings:
+- plan.md now exists at .helm-goal/plan.md; implement iterations should follow it one step at a time and cross-check .helm-goal/notes.md for exact palettes/copy/geometry
+- Worktree has only OLD PLAN.md/DECISIONS.md/README.md at root plus .gitignore (node_modules/dist/out ignored); scaffold must not clobber these files
+- Mocks live only in sibling D:/Repo/Tools/PomPom/mock/*.html — read, never edit; the PLAN.md to update for 'Current status' is this worktree's older copy (currently says 'Pre-mock.')
