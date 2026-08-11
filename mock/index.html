@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PomPom — clickable mock</title>
+<style>
+  /* ============================================================
+     PomPom — interactive HTML mock
+     Clean / minimal dark UI. A single accent color shifts hue
+     between WORK (cool teal) and REST (warm amber). Subtle
+     micro-animations; a pulse on every step change.
+     This is a design mock, not the Electron app. All interactions
+     are wired so the flow (config -> timer -> takeover) is clickable.
+     ============================================================ */
+
+  :root {
+    /* neutral surface palette */
+    --bg:        #0d0f13;
+    --bg-2:      #14171d;
+    --surface:   #191d25;
+    --surface-2: #20252f;
+    --border:    #2a303b;
+    --text:      #eef1f6;
+    --text-dim:  #9aa3b2;
+    --text-faint:#5c6472;
+
+    /* accent — hue-shifted by the .work / .rest state classes */
+    --accent:      #3ddc97; /* work default */
+    --accent-soft: rgba(61, 220, 151, 0.14);
+    --accent-glow: rgba(61, 220, 151, 0.38);
+
+    --radius:   16px;
+    --radius-sm:10px;
+    --ease: cubic-bezier(.22,.61,.36,1);
+    font-size: 16px;
+  }
+
+  /* WORK state — cool teal/green */
+  .state-work {
+    --accent:      #3ddc97;
+    --accent-soft: rgba(61, 220, 151, 0.14);
+    --accent-glow: rgba(61, 220, 151, 0.40);
+  }
+  /* REST state — warm amber/coral */
+  .state-rest {
+    --accent:      #ffab4d;
+    --accent-soft: rgba(255, 171, 77, 0.14);
+    --accent-glow: rgba(255, 171, 77, 0.40);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: radial-gradient(1200px 700px at 50% -10%, #161b24 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-x: hidden;
+  }
+
+  .tabular { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  /* ---------- App window frame (simulates the Electron window) -------- */
+  .window {
+    position: relative;
+    width: 460px;
+    max-width: 100%;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 40px 120px -30px rgba(0,0,0,.75),
+                0 0 0 1px rgba(255,255,255,.02) inset;
+    overflow: hidden;
+    transition: box-shadow .5s var(--ease);
+  }
+  .window.state-rest { box-shadow: 0 40px 120px -30px rgba(0,0,0,.75), 0 0 60px -30px var(--accent-glow); }
+  .window.state-work { box-shadow: 0 40px 120px -30px rgba(0,0,0,.75), 0 0 60px -30px var(--accent-glow); }
+
+  /* title bar */
+  .titlebar {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 8px;
+    background: linear-gradient(var(--surface), var(--bg-2));
+    border-bottom: 1px solid var(--border);
+    -webkit-app-region: drag;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot.r { background:#ff5f57; } .dot.y { background:#febc2e; } .dot.g { background:#28c840; }
+  .titlebar .app-name {
+    margin-left: 8px; font-size: 12.5px; font-weight: 600; letter-spacing: .04em;
+    color: var(--text-dim); display:flex; align-items:center; gap:7px;
+  }
+  .brand-mark {
+    width: 14px; height: 14px; border-radius: 5px;
+    background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 40%, #fff));
+    box-shadow: 0 0 10px -1px var(--accent-glow);
+    transition: background .5s var(--ease), box-shadow .5s var(--ease);
+  }
+
+  /* ---------- ambient meter bar (always-on-top strip) ---------------- */
+  .ambient-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 4px;
+    background: rgba(255,255,255,.04);
+    z-index: 60;
+    opacity: 0;
+    transform: translateY(-100%);
+    transition: opacity .35s var(--ease), transform .35s var(--ease);
+  }
+  .ambient-bar.on { opacity: 1; transform: translateY(0); }
+  .ambient-bar .fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent));
+    box-shadow: 0 0 12px 0 var(--accent-glow);
+    transition: width 1s linear, background .5s var(--ease);
+  }
+  .ambient-note {
+    position:absolute; top:8px; right:12px; z-index:60;
+    font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+    color: var(--text-faint); opacity:0; transition: opacity .35s;
+  }
+  .ambient-bar.on ~ .ambient-note { opacity:1; }
+
+  /* ---------- generic view container --------------------------------- */
+  .view { display: none; padding: 26px 26px 24px; }
+  .view.active { display: block; animation: viewIn .4s var(--ease); }
+  @keyframes viewIn { from { opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+
+  .view-title { font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--text-faint); margin-bottom: 18px; font-weight:600; }
+
+  /* ================= CONFIG VIEW ===================================== */
+  .field { margin-bottom: 20px; }
+  .field > label { display:block; font-size: 13px; color: var(--text-dim); margin-bottom: 9px; font-weight:500; }
+
+  .stepper { display: inline-flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow:hidden; }
+  .stepper button {
+    width: 40px; height: 40px; border: none; background: transparent; color: var(--text);
+    font-size: 20px; cursor: pointer; transition: background .15s; line-height:1;
+  }
+  .stepper button:hover { background: var(--surface-2); }
+  .stepper .val { min-width: 46px; text-align:center; font-size: 17px; font-weight:600; }
+
+  .duration-row { display:flex; gap: 12px; }
+  .duration-row .field { flex:1; margin-bottom:0; }
+  .num-input {
+    display:flex; align-items:center; background: var(--surface); border:1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 0 14px; height: 42px;
+  }
+  .num-input input {
+    background:none; border:none; color:var(--text); font-size:17px; font-weight:600; width:100%;
+    outline:none; font-variant-numeric: tabular-nums;
+  }
+  .num-input .unit { color: var(--text-faint); font-size: 12px; }
+
+  /* task label list */
+  .steps-list { display:flex; flex-direction:column; gap:8px; }
+  .step-row {
+    display:flex; align-items:center; gap:12px; background: var(--surface);
+    border:1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px;
+    animation: viewIn .3s var(--ease);
+  }
+  .step-index {
+    width: 26px; height: 26px; border-radius: 8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 12px; font-weight:700; color:#0d0f13;
+    background: var(--accent-work, #3ddc97);
+  }
+  .step-row input {
+    flex:1; background:none; border:none; color:var(--text); font-size: 14.5px; outline:none;
+    padding: 4px 0;
+  }
+  .step-row input::placeholder { color: var(--text-faint); }
+  .step-row .work-min { color: var(--text-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  /* templates */
+  .template-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .chip {
+    background: var(--surface); border:1px solid var(--border); color: var(--text-dim);
+    border-radius: 999px; padding: 7px 14px; font-size: 12.5px; cursor:pointer;
+    transition: all .18s var(--ease); white-space:nowrap;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .chip.add { border-style: dashed; color: var(--text-faint); }
+
+  /* buttons */
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius: var(--radius-sm); cursor:pointer; font-weight:600;
+    font-size:15px; padding: 0 22px; height: 48px; transition: all .18s var(--ease);
+    font-family:inherit;
+  }
+  .btn-primary {
+    width:100%; margin-top: 8px;
+    background: var(--accent); color:#0d0f13;
+    box-shadow: 0 8px 24px -8px var(--accent-glow);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 30px -8px var(--accent-glow); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-ghost { background: var(--surface); color: var(--text-dim); border:1px solid var(--border); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text-faint); }
+
+  .hint { font-size: 12px; color: var(--text-faint); margin-top: 10px; line-height:1.5; }
+
+  /* ================= TIMER VIEW ====================================== */
+  .timer-wrap { display:flex; flex-direction:column; align-items:center; text-align:center; }
+
+  .step-badge {
+    display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.12em; color: var(--accent);
+    background: var(--accent-soft); padding: 6px 14px; border-radius:999px; margin-bottom: 6px;
+    transition: color .5s var(--ease), background .5s var(--ease);
+  }
+  .step-badge .pulse-dot { width:7px; height:7px; border-radius:50%; background: var(--accent); animation: dotPulse 2s var(--ease) infinite; }
+  @keyframes dotPulse { 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:.4; transform:scale(.7);} }
+
+  .task-label { font-size: 22px; font-weight:700; margin-bottom: 22px; letter-spacing:-.01em; }
+
+  /* ring */
+  .ring-wrap { position: relative; width: 240px; height: 240px; margin-bottom: 8px; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-track { fill:none; stroke: var(--surface-2); stroke-width: 10; }
+  .ring-prog {
+    fill:none; stroke: var(--accent); stroke-width: 10; stroke-linecap: round;
+    filter: drop-shadow(0 0 6px var(--accent-glow));
+    transition: stroke-dashoffset 1s linear, stroke .5s var(--ease);
+  }
+  .ring-center {
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .ring-time { font-size: 52px; font-weight: 700; letter-spacing: -.02em; line-height:1; }
+  .ring-sub { font-size: 12px; color: var(--text-faint); margin-top: 8px; letter-spacing:.05em; }
+
+  .window.pulsing .ring-prog { animation: ringPulse 1.4s var(--ease); }
+  @keyframes ringPulse { 0%{filter:drop-shadow(0 0 6px var(--accent-glow));} 50%{filter:drop-shadow(0 0 22px var(--accent-glow));} 100%{filter:drop-shadow(0 0 6px var(--accent-glow));} }
+
+  /* sequence strip */
+  .sequence { display:flex; gap:6px; margin: 22px 0 6px; width: 100%; justify-content:center; flex-wrap:wrap; }
+  .seg {
+    height: 6px; border-radius: 3px; background: var(--surface-2); flex:1; min-width: 8px; max-width: 40px;
+    position:relative; overflow:hidden; transition: background .3s;
+  }
+  .seg.rest-seg { max-width: 16px; opacity:.6; }
+  .seg.done { background: var(--accent); opacity:.55; }
+  .seg.current { background: var(--surface-2); }
+  .seg.current .seg-fill { position:absolute; inset:0; width:0%; background: var(--accent); transition: width 1s linear; }
+  .seq-caption { font-size:11px; color: var(--text-faint); letter-spacing:.05em; }
+
+  /* next up */
+  .next-up { margin-top: 18px; font-size: 13px; color: var(--text-dim); }
+  .next-up b { color: var(--text); }
+
+  /* controls */
+  .controls { display:flex; gap:10px; margin-top: 22px; width:100%; }
+  .controls .btn { flex:1; height: 46px; padding:0 12px; font-size:14px; }
+  .icon-btn {
+    width:46px; flex:0 0 auto !important;
+  }
+
+  /* toggle row */
+  .toggle-row {
+    display:flex; align-items:center; justify-content:space-between; margin-top: 20px;
+    padding: 12px 14px; background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-sm);
+    width:100%;
+  }
+  .toggle-row .lbl { font-size: 13px; color: var(--text-dim); display:flex; align-items:center; gap:9px; }
+  .switch { position:relative; width: 42px; height: 24px; border-radius: 999px; background: var(--surface-2); cursor:pointer; transition: background .2s; flex-shrink:0; }
+  .switch::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition: transform .2s var(--ease); }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { transform: translateX(18px); }
+
+  /* ================= TAKEOVER OVERLAY ================================ */
+  .takeover {
+    position: fixed; inset: 0; z-index: 100;
+    background: radial-gradient(900px 600px at 50% 40%, color-mix(in srgb, var(--accent) 12%, var(--bg)) 0%, var(--bg) 70%);
+    display: none; flex-direction: column; align-items:center; justify-content:center;
+    text-align:center; padding: 40px;
+  }
+  .takeover.active { display:flex; animation: takeoverIn .5s var(--ease); }
+  @keyframes takeoverIn { from { opacity:0; } to { opacity:1; } }
+  .takeover.state-work, .takeover.state-rest {}
+
+  .to-eyebrow { font-size: 13px; text-transform:uppercase; letter-spacing:.2em; color: var(--accent); margin-bottom: 18px; font-weight:700; }
+  .to-headline { font-size: 40px; font-weight: 800; letter-spacing:-.02em; margin-bottom: 14px; line-height:1.05; }
+  .to-next { font-size: 17px; color: var(--text-dim); margin-bottom: 40px; }
+  .to-next b { color: var(--text); }
+
+  .grace-ring { position: relative; width: 150px; height:150px; margin-bottom: 36px; }
+  .grace-ring svg { transform: rotate(-90deg); }
+  .grace-track { fill:none; stroke: rgba(255,255,255,.08); stroke-width: 6; }
+  .grace-prog { fill:none; stroke: var(--accent); stroke-width: 6; stroke-linecap:round; transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 8px var(--accent-glow)); }
+  .grace-num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:56px; font-weight:800; }
+  .grace-label { font-size: 12px; color: var(--text-faint); letter-spacing:.1em; text-transform:uppercase; margin-bottom: 30px; }
+
+  .pulse-ring { position:absolute; inset:-6px; border-radius:50%; border:2px solid var(--accent); opacity:0; }
+  .grace-ring.done .pulse-ring { animation: pulseRing 1.6s var(--ease) infinite; }
+  @keyframes pulseRing { 0%{opacity:.6; transform:scale(1);} 100%{opacity:0; transform:scale(1.25);} }
+
+  .btn-confirm {
+    background: var(--accent); color:#0d0f13; font-size: 17px; font-weight:700;
+    padding: 0 48px; height: 56px; border-radius: 14px;
+    box-shadow: 0 10px 40px -8px var(--accent-glow);
+    opacity: .45; pointer-events:none;
+    transition: opacity .4s var(--ease), transform .18s var(--ease), box-shadow .18s;
+  }
+  .btn-confirm.ready { opacity:1; pointer-events:auto; animation: confirmPulse 2s var(--ease) infinite; }
+  .btn-confirm.ready:hover { transform: translateY(-2px); box-shadow: 0 16px 48px -8px var(--accent-glow); }
+  @keyframes confirmPulse { 0%,100%{ box-shadow:0 10px 40px -8px var(--accent-glow);} 50%{ box-shadow:0 10px 56px -2px var(--accent-glow);} }
+  .to-confirm-hint { font-size:12px; color: var(--text-faint); margin-top:16px; height:16px; }
+
+  /* ---------- session complete ---------- */
+  .complete-wrap { text-align:center; padding: 20px 0; }
+  .complete-check {
+    width: 88px; height:88px; border-radius:50%; margin: 0 auto 24px;
+    background: var(--accent-soft); display:flex; align-items:center; justify-content:center;
+    border: 2px solid var(--accent);
+  }
+  .complete-check svg { stroke: var(--accent); }
+
+  /* ================= MOCK NAV (dev-only) ============================= */
+  .mocknav {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    display:flex; align-items:center; gap:6px; z-index:200;
+    background: rgba(20,23,29,.9); backdrop-filter: blur(10px);
+    border:1px solid var(--border); border-radius: 999px; padding: 6px;
+    box-shadow: 0 10px 40px -10px rgba(0,0,0,.7);
+  }
+  .mocknav .mn-label { font-size:10px; color: var(--text-faint); text-transform:uppercase; letter-spacing:.1em; padding: 0 8px 0 12px; }
+  .mocknav button {
+    background:none; border:none; color: var(--text-dim); font-family:inherit;
+    font-size: 12.5px; font-weight:500; padding: 7px 13px; border-radius: 999px; cursor:pointer;
+    transition: all .15s;
+  }
+  .mocknav button:hover { color: var(--text); background: var(--surface); }
+  .mocknav button.active { background: var(--accent); color:#0d0f13; font-weight:600; }
+
+  .speed-toggle {
+    position: fixed; bottom: 18px; right: 18px; z-index:200;
+    background: rgba(20,23,29,.9); backdrop-filter: blur(10px);
+    border:1px solid var(--border); border-radius: 10px; padding: 8px 12px;
+    font-size: 11px; color: var(--text-faint); cursor:pointer; user-select:none;
+    display:flex; align-items:center; gap:8px;
+  }
+  .speed-toggle:hover { color: var(--text-dim); }
+  .speed-toggle b { color: var(--accent); }
+
+  .back-link {
+    position: fixed; top: 18px; left: 18px; z-index:200;
+    font-size:12px; color: var(--text-dim); font-weight:500;
+    text-decoration:none; background: rgba(20,23,29,.9); border:1px solid var(--border);
+    padding: 8px 14px; border-radius: 999px; backdrop-filter: blur(10px);
+  }
+  .back-link:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<a class="back-link" href="compare.html">← Back to comparison</a>
+
+<div class="window state-work" id="window">
+
+  <!-- ambient always-on-top meter bar -->
+  <div class="ambient-bar" id="ambientBar"><div class="fill" id="ambientFill"></div></div>
+  <div class="ambient-note">always-on-top</div>
+
+  <!-- title bar -->
+  <div class="titlebar">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span class="app-name"><span class="brand-mark"></span>PomPom</span>
+  </div>
+
+  <!-- ============ CONFIG VIEW ============ -->
+  <section class="view active" id="view-config">
+    <div class="view-title">New session</div>
+
+    <div class="field">
+      <label>Pomodoros</label>
+      <div class="stepper">
+        <button onclick="changeCount(-1)">–</button>
+        <span class="val tabular" id="countVal">4</span>
+        <button onclick="changeCount(1)">+</button>
+      </div>
+    </div>
+
+    <div class="duration-row">
+      <div class="field">
+        <label>Work</label>
+        <div class="num-input"><input id="workDur" type="number" value="25" min="1" /><span class="unit">min</span></div>
+      </div>
+      <div class="field">
+        <label>Rest</label>
+        <div class="num-input"><input id="restDur" type="number" value="5" min="1" /><span class="unit">min</span></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Task per pomodoro</label>
+      <div class="steps-list" id="stepsList"></div>
+    </div>
+
+    <div class="field">
+      <label>Templates</label>
+      <div class="template-bar" id="templateBar">
+        <span class="chip" onclick="loadTemplate('deep')">Deep work · 4×50/10</span>
+        <span class="chip" onclick="loadTemplate('classic')">Classic · 4×25/5</span>
+        <span class="chip add" onclick="saveTemplate()">+ Save current</span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="startSession()">Start session</button>
+    <p class="hint">Between every step, PomPom takes over the screen with a short grace countdown — you confirm before the next step begins.</p>
+  </section>
+
+  <!-- ============ TIMER VIEW ============ -->
+  <section class="view" id="view-timer">
+    <div class="timer-wrap">
+      <div class="step-badge" id="stepBadge"><span class="pulse-dot"></span><span id="stepBadgeText">Work</span></div>
+      <div class="task-label" id="taskLabel">Task A</div>
+
+      <div class="ring-wrap">
+        <svg width="240" height="240" viewBox="0 0 240 240">
+          <circle class="ring-track" cx="120" cy="120" r="110"></circle>
+          <circle class="ring-prog"  cx="120" cy="120" r="110" id="ringProg"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-time tabular" id="ringTime">25:00</div>
+          <div class="ring-sub" id="ringSub">Pomodoro 1 of 4</div>
+        </div>
+      </div>
+
+      <div class="sequence" id="sequence"></div>
+      <div class="seq-caption" id="seqCaption">Session progress</div>
+
+      <div class="next-up" id="nextUp">Next: <b>Rest · 5 min</b></div>
+
+      <div class="controls">
+        <button class="btn btn-ghost" id="pauseBtn" onclick="togglePause()">Pause</button>
+        <button class="btn btn-ghost" onclick="skipStep()">Skip →</button>
+        <button class="btn btn-ghost icon-btn" title="Stop session" onclick="stopSession()">■</button>
+      </div>
+
+      <div class="toggle-row">
+        <span class="lbl"><span class="brand-mark" style="width:12px;height:12px;"></span>Ambient meter bar</span>
+        <div class="switch" id="ambientSwitch" onclick="toggleAmbient()"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SESSION COMPLETE VIEW ============ -->
+  <section class="view" id="view-done">
+    <div class="complete-wrap">
+      <div class="complete-check">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <div class="task-label" style="margin-bottom:8px;">Session complete</div>
+      <p class="hint" style="margin-bottom:24px;" id="doneSummary">4 pomodoros · 1h 40m focused</p>
+      <button class="btn btn-primary" onclick="showView('config')">New session</button>
+    </div>
+  </section>
+
+  <!-- ============ TAKEOVER OVERLAY ============ -->
+  <div class="takeover state-rest" id="takeover">
+    <div class="to-eyebrow" id="toEyebrow">Step change</div>
+    <div class="to-headline" id="toHeadline">Time for a break</div>
+    <div class="to-next" id="toNext">Up next: <b>Rest · 5 min</b></div>
+
+    <div class="grace-ring" id="graceRing">
+      <div class="pulse-ring"></div>
+      <svg width="150" height="150" viewBox="0 0 150 150">
+        <circle class="grace-track" cx="75" cy="75" r="68"></circle>
+        <circle class="grace-prog"  cx="75" cy="75" r="68" id="graceProg"></circle>
+      </svg>
+      <div class="grace-num tabular" id="graceNum">5</div>
+    </div>
+    <div class="grace-label" id="graceLabel">Get ready…</div>
+
+    <button class="btn-confirm" id="confirmBtn" onclick="confirmStep()">Confirm &amp; continue</button>
+    <div class="to-confirm-hint" id="confirmHint"></div>
+  </div>
+
+</div>
+
+<!-- mock-only navigation -->
+<div class="mocknav">
+  <span class="mn-label">Mock</span>
+  <button data-nav="config" class="active" onclick="showView('config')">Config</button>
+  <button data-nav="timer" onclick="showView('timer')">Timer</button>
+  <button data-nav="takeover" onclick="demoTakeover()">Takeover</button>
+  <button data-nav="done" onclick="showView('done')">Complete</button>
+</div>
+<div class="speed-toggle" id="speedToggle" onclick="toggleSpeed()">demo speed: <b id="speedLabel">fast</b></div>
+
+<script>
+/* ============================================================
+   State
+   ============================================================ */
+const LABELS_DEFAULT = ['Task A','Task B','Task C','Task D','Task E','Task F','Task G','Task H'];
+let cfg = { count: 4, work: 25, rest: 5, labels: ['Task A','Task B','Task C','Task D'] };
+
+let timeline = [];      // [{type:'work'|'rest', label, mins, pomoIndex}]
+let curIdx = 0;         // index into timeline
+let remaining = 0;      // seconds left in current step
+let running = false;
+let paused = false;
+let tickHandle = null;
+let fast = true;        // demo: run ~30x speed
+let ambientOn = false;
+
+const RING_R = 110, RING_C = 2 * Math.PI * RING_R;
+const GRACE_R = 68, GRACE_C = 2 * Math.PI * GRACE_R;
+document.getElementById('ringProg').style.strokeDasharray = RING_C;
+document.getElementById('graceProg').style.strokeDasharray = GRACE_C;
+
+/* ============================================================
+   Config view
+   ============================================================ */
+function renderSteps() {
+  const list = document.getElementById('stepsList');
+  list.innerHTML = '';
+  for (let i = 0; i < cfg.count; i++) {
+    const row = document.createElement('div');
+    row.className = 'step-row';
+    row.innerHTML = `
+      <span class="step-index">${i+1}</span>
+      <input value="${cfg.labels[i] ?? ''}" placeholder="Task ${i+1}"
+             oninput="cfg.labels[${i}]=this.value" />
+      <span class="work-min">${document.getElementById('workDur').value}m</span>`;
+    list.appendChild(row);
+  }
+}
+function changeCount(delta) {
+  cfg.count = Math.max(1, Math.min(8, cfg.count + delta));
+  document.getElementById('countVal').textContent = cfg.count;
+  // grow labels array with sensible defaults
+  while (cfg.labels.length < cfg.count) cfg.labels.push(LABELS_DEFAULT[cfg.labels.length] || `Task ${cfg.labels.length+1}`);
+  renderSteps();
+}
+document.getElementById('workDur').addEventListener('input', renderSteps);
+
+function loadTemplate(name) {
+  if (name === 'deep')    cfg = { count:4, work:50, rest:10, labels:['Writing','Writing','Review','Planning'] };
+  if (name === 'classic') cfg = { count:4, work:25, rest:5,  labels:['Task A','Task B','Task C','Task D'] };
+  syncConfigInputs();
+}
+function saveTemplate() {
+  const bar = document.getElementById('templateBar');
+  const chip = document.createElement('span');
+  const name = `Custom · ${cfg.count}×${document.getElementById('workDur').value}/${document.getElementById('restDur').value}`;
+  chip.className = 'chip';
+  chip.textContent = name;
+  chip.style.borderColor = 'var(--accent)';
+  bar.insertBefore(chip, bar.querySelector('.chip.add'));
+}
+function syncConfigInputs() {
+  document.getElementById('countVal').textContent = cfg.count;
+  document.getElementById('workDur').value = cfg.work;
+  document.getElementById('restDur').value = cfg.rest;
+  renderSteps();
+}
+
+/* ============================================================
+   Build timeline & start
+   ============================================================ */
+function startSession() {
+  cfg.work = +document.getElementById('workDur').value || 25;
+  cfg.rest = +document.getElementById('restDur').value || 5;
+  timeline = [];
+  for (let i = 0; i < cfg.count; i++) {
+    timeline.push({ type:'work', label: cfg.labels[i] || `Task ${i+1}`, mins: cfg.work, pomoIndex: i });
+    if (i < cfg.count - 1) timeline.push({ type:'rest', label:'Rest', mins: cfg.rest, pomoIndex: i });
+  }
+  curIdx = 0;
+  renderSequence();
+  enterStep(0, /*fromStart*/ true);
+  showView('timer');
+}
+
+/* ============================================================
+   Sequence strip
+   ============================================================ */
+function renderSequence() {
+  const seq = document.getElementById('sequence');
+  seq.innerHTML = '';
+  timeline.forEach((step, i) => {
+    const seg = document.createElement('div');
+    seg.className = 'seg' + (step.type === 'rest' ? ' rest-seg' : '');
+    seg.dataset.i = i;
+    seg.innerHTML = '<div class="seg-fill"></div>';
+    seq.appendChild(seg);
+  });
+}
+function updateSequence() {
+  document.querySelectorAll('.seg').forEach((seg) => {
+    const i = +seg.dataset.i;
+    seg.classList.remove('done','current');
+    seg.querySelector('.seg-fill').style.width = '0%';
+    if (i < curIdx) seg.classList.add('done');
+    else if (i === curIdx) seg.classList.add('current');
+  });
+}
+
+/* ============================================================
+   Step lifecycle
+   ============================================================ */
+function enterStep(idx, fromStart) {
+  curIdx = idx;
+  const step = timeline[idx];
+  const isWork = step.type === 'work';
+
+  // accent hue swap
+  const win = document.getElementById('window');
+  win.classList.toggle('state-work', isWork);
+  win.classList.toggle('state-rest', !isWork);
+
+  // labels
+  document.getElementById('stepBadgeText').textContent = isWork ? 'Work' : 'Rest';
+  document.getElementById('taskLabel').textContent = step.label;
+  const pomoNum = step.pomoIndex + 1;
+  document.getElementById('ringSub').textContent = isWork
+    ? `Pomodoro ${pomoNum} of ${cfg.count}`
+    : `Break after pomodoro ${pomoNum}`;
+
+  // next-up hint
+  const next = timeline[idx+1];
+  document.getElementById('nextUp').innerHTML = next
+    ? `Next: <b>${next.type==='work' ? next.label : 'Rest'} · ${next.mins} min</b>`
+    : `Next: <b>Session complete</b>`;
+
+  updateSequence();
+
+  // pulse the ring on step change
+  win.classList.remove('pulsing'); void win.offsetWidth; win.classList.add('pulsing');
+
+  remaining = step.mins * 60;
+  updateRing();
+  running = true; paused = false;
+  document.getElementById('pauseBtn').textContent = 'Pause';
+  if (!tickHandle) tickHandle = setInterval(tick, fast ? 33 : 1000);
+}
+
+function tick() {
+  if (!running || paused) return;
+  remaining -= 1;
+  if (remaining < 0) { stepFinished(); return; }
+  updateRing();
+}
+
+function updateRing() {
+  const step = timeline[curIdx];
+  const total = step.mins * 60;
+  const frac = total ? remaining / total : 0;
+  document.getElementById('ringProg').style.strokeDashoffset = RING_C * (1 - frac);
+  document.getElementById('ringTime').textContent = fmt(remaining);
+
+  // current segment fill (elapsed)
+  const cur = document.querySelector(`.seg[data-i="${curIdx}"] .seg-fill`);
+  if (cur) cur.style.width = ((1 - frac) * 100) + '%';
+
+  // ambient bar mirrors elapsed of current step
+  document.getElementById('ambientFill').style.width = ((1 - frac) * 100) + '%';
+}
+
+function fmt(s) {
+  s = Math.max(0, s);
+  const m = Math.floor(s / 60), ss = s % 60;
+  return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+
+function stepFinished() {
+  running = false;
+  if (curIdx + 1 >= timeline.length) { showComplete(); return; }
+  showTakeover(curIdx + 1);
+}
+
+/* ============================================================
+   Controls
+   ============================================================ */
+function togglePause() {
+  paused = !paused;
+  document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+}
+function skipStep() {
+  running = false;
+  if (curIdx + 1 >= timeline.length) { showComplete(); return; }
+  showTakeover(curIdx + 1);
+}
+function stopSession() {
+  running = false; clearInterval(tickHandle); tickHandle = null;
+  showView('config');
+}
+
+/* ============================================================
+   Takeover overlay (grace period + required confirm)
+   ============================================================ */
+let pendingIdx = null;
+let graceHandle = null;
+const GRACE_SECS = 5;
+
+function showTakeover(nextIdx) {
+  pendingIdx = nextIdx;
+  const next = timeline[nextIdx];
+  const isWork = next.type === 'work';
+
+  const to = document.getElementById('takeover');
+  to.classList.toggle('state-work', isWork);
+  to.classList.toggle('state-rest', !isWork);
+
+  document.getElementById('toEyebrow').textContent = isWork ? 'Break over' : 'Nice work';
+  document.getElementById('toHeadline').textContent = isWork ? 'Back to focus' : 'Time for a break';
+  document.getElementById('toNext').innerHTML = isWork
+    ? `Up next: <b>${next.label} · ${next.mins} min</b>`
+    : `Up next: <b>Rest · ${next.mins} min</b>`;
+
+  // reset confirm gate
+  const confirmBtn = document.getElementById('confirmBtn');
+  confirmBtn.classList.remove('ready');
+  document.getElementById('confirmHint').textContent = '';
+  document.getElementById('graceRing').classList.remove('done');
+  document.getElementById('graceLabel').textContent = 'Get ready…';
+
+  to.classList.add('active');
+
+  // run grace countdown
+  let g = GRACE_SECS;
+  document.getElementById('graceNum').textContent = g;
+  document.getElementById('graceProg').style.strokeDashoffset = 0;
+  clearInterval(graceHandle);
+  graceHandle = setInterval(() => {
+    g -= 1;
+    if (g <= 0) {
+      clearInterval(graceHandle);
+      document.getElementById('graceNum').textContent = '0';
+      document.getElementById('graceProg').style.strokeDashoffset = GRACE_C;
+      document.getElementById('graceLabel').textContent = 'Confirm to continue';
+      document.getElementById('graceRing').classList.add('done');
+      confirmBtn.classList.add('ready');
+      document.getElementById('confirmHint').textContent = 'Waiting for you — the timer stays paused until you confirm.';
+      return;
+    }
+    document.getElementById('graceNum').textContent = g;
+    document.getElementById('graceProg').style.strokeDashoffset = GRACE_C * (1 - g / GRACE_SECS);
+  }, fast ? 400 : 1000);
+}
+
+function confirmStep() {
+  document.getElementById('takeover').classList.remove('active');
+  clearInterval(graceHandle);
+  enterStep(pendingIdx, false);
+}
+
+/* demo: trigger a takeover from the mock nav even without a running session */
+function demoTakeover() {
+  if (!timeline.length) startSessionSilently();
+  showView('timer');
+  const nextIdx = Math.min(curIdx + 1, timeline.length - 1);
+  showTakeover(nextIdx || 1);
+}
+function startSessionSilently() {
+  cfg.work = +document.getElementById('workDur').value || 25;
+  cfg.rest = +document.getElementById('restDur').value || 5;
+  timeline = [];
+  for (let i = 0; i < cfg.count; i++) {
+    timeline.push({ type:'work', label: cfg.labels[i] || `Task ${i+1}`, mins: cfg.work, pomoIndex: i });
+    if (i < cfg.count - 1) timeline.push({ type:'rest', label:'Rest', mins: cfg.rest, pomoIndex: i });
+  }
+  curIdx = 0; renderSequence(); enterStep(0, true); running = false;
+}
+
+/* ============================================================
+   Complete
+   ============================================================ */
+function showComplete() {
+  clearInterval(tickHandle); tickHandle = null;
+  const totalMin = cfg.count * cfg.work;
+  const h = Math.floor(totalMin/60), m = totalMin%60;
+  document.getElementById('doneSummary').textContent =
+    `${cfg.count} pomodoros · ${h?h+'h ':''}${m}m focused`;
+  showView('done');
+}
+
+/* ============================================================
+   Ambient bar
+   ============================================================ */
+function toggleAmbient() {
+  ambientOn = !ambientOn;
+  document.getElementById('ambientSwitch').classList.toggle('on', ambientOn);
+  document.getElementById('ambientBar').classList.toggle('on', ambientOn);
+}
+
+/* ============================================================
+   View switching + mock nav
+   ============================================================ */
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (name !== 'takeover') document.getElementById('takeover').classList.remove('active');
+  document.querySelectorAll('.mocknav button').forEach(b => b.classList.toggle('active', b.dataset.nav === name));
+}
+
+function toggleSpeed() {
+  fast = !fast;
+  document.getElementById('speedLabel').textContent = fast ? 'fast' : 'real';
+  if (tickHandle) { clearInterval(tickHandle); tickHandle = setInterval(tick, fast ? 33 : 1000); }
+}
+
+/* init */
+syncConfigInputs();
+</script>
+</body>
+</html>
