@@ -10,45 +10,11 @@ DECISIONS.md / PLAN.md (Fas 3 Point 11) in the Helm repo for why.
 
 ## ⚠️ CRITICAL: where the mock files actually live
 This worktree is at
-`D:/Repo/Tools/PomPom-worktrees/goal-308c740c-...` on branch
-`helm/goal-308c740c-...`, based on commit e3278b9 which only has
-README/PLAN/DECISIONS (the OLD, "pre-mock" versions) and **no `mock/`
-directory**.
+`D:/Repo/Tools/PomPom-worktrees/goal-308c74
 
-The `mock/` HTML files AND the newer, fuller PLAN.md/DECISIONS.md exist ONLY
-as **uncommitted files in the MAIN repo working tree**:
-- `D:/Repo/Tools/PomPom/mock/index.html`          (Neon Dark — primary spec, 819 lines)
-- `D:/Repo/Tools/PomPom/mock/variant-b-paper.html` (Warm Paper Dark)
-- `D:/Repo/Tools/PomPom/mock/variant-d-nature.html`(Nature)
-- `D:/Repo/Tools/PomPom/mock/compare.html`         (just a comparison index page — ignore)
-- `D:/Repo/Tools/PomPom/PLAN.md` and `.../DECISIONS.md` (newer than the worktree copies)
+[... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
 
-The main repo is a sibling on disk and is readable. **Future iterations: read
-the mocks from `D:/Repo/Tools/PomPom/mock/*.html`** (they are not in this
-worktree and not on any branch). Do NOT edit them. This notes file already
-captures the full spec below, so re-reading is optional.
-
-## Toolchain (verified available)
-- node v24.11.1, npm 11.6.2 present. Windows environment (Git Bash shell).
-- `npm run dev` must launch the Electron app for the sanity check at the end.
-
-## Recommended stack / structure
-- **electron-vite** (`npm create @quick-start/electron` scaffolds main/preload/
-  renderer with Vite + React + TS cleanly) OR a manual Vite+Electron setup.
-  electron-vite is the simplest standard path and gives HMR for the renderer.
-- TypeScript is fine (node 24, no time sink with electron-vite template).
-- Three BrowserWindows: main (config/timer), takeover (fullscreen+alwaysOnTop),
-  ambient bar (frameless transparent alwaysOnTop click-through). Keep timer
-  state authority in the MAIN process (or the main renderer) and drive the two
-  auxiliary windows via IPC, so they stay in sync. Simplest: keep the timeline/
-  countdown engine in the main-window renderer and use `ipcRenderer`→main→
-  `webContents.send` to push state to takeover + ambient windows. Either works;
-  decide in plan phase. Main-process-owned timer is cleaner for multi-window.
-- Persistence: JSON file in `app.getPath('userData')` (e.g. `pompom-store.json`)
-  or `electron-store`. Store: templates[], last config, chosen theme, ambient
-  toggle. Must survive restart (NOT localStorage).
-
-## THE FOUR SURFACES (all in index.html — this is the behavioral contract)
+THE FOUR SURFACES (all in index.html — this is the behavioral contract)
 
 ### Shared state model (from inline JS, lines 502-816)
 ```
@@ -296,3 +262,21 @@ Key learnings:
 - --app-bg is a new var (not named in mocks) carrying each theme's body radial-gradient; component backgrounds should still use --bg-2/--surface as in the mocks
 - Next is plan step 3 (Config view at #/): replace App.tsx body with the real config view but keep the applyTheme(document.documentElement, theme, state) useEffect; theme picker + persistence come in step 4
 - typecheck + build both pass; did not run npm run dev (pure renderer/CSS change) — full launch sanity check is reserved for step 12, and dev should be launched via Bash run_in_background to kill by PID rather than a blanket electron.exe taskkill
+
+## Iteration 5 — success
+
+Summary: Implement config view (plan step 3): shared session model + React ConfigView with pomodoro stepper, work/rest inputs, task-label rows, and start-to-timeline wiring
+
+Key changes:
+- Added src/shared/model.ts: Cfg/TimelineStep/Template types, LABELS_DEFAULT, clampCount, growLabels, buildTimeline (work,rest,...,work with no trailing rest), DEFAULT_CFG, and SEED_TEMPLATES — ported verbatim from mock/index.html
+- Added src/renderer/src/views/ConfigView.tsx: 'New session' form with – count + stepper (clamp 1..8, grows labels, disables at bounds), work/rest number inputs (raw-string buffered, 25/5 fallback on start), one editable task-label row per pomodoro with {work}m hint, hint copy, and Start button that builds the timeline via onStart
+- Added src/renderer/src/styles/views.css: ported .window/.titlebar/.brand-mark/.view/config-form/.btn styles from the mock, using theme CSS vars (var(--accent-ink) for on-accent text, var(--accent) for step-index badges) so all three themes restyle automatically
+- Rewrote App.tsx to render the themed .window frame + brand titlebar + ConfigView, applying DEFAULT_THEME (work state) to document root; Start logs cfg+timeline as a stub until the timer view exists
+- Added @shared alias to electron.vite.config.ts and tsconfig.web.json paths; imported views.css in main.tsx; removed now-unused scaffold-demo CSS from global.css
+
+Key learnings:
+- Plan step 3 DONE and verified via `npm run typecheck` + `npm run build` (both pass, 35 modules, @shared import resolves). Did NOT launch dev (renderer-only change) — full Electron launch sanity check stays reserved for step 12; launch via Bash run_in_background to kill by PID, never blanket taskkill electron.exe.
+- Shared model lives at src/shared/model.ts and is imported as '@shared/model' (alias now in vite config + tsconfig.web.json). buildTimeline/clampCount/growLabels/DEFAULT_CFG/SEED_TEMPLATES are ready for the timer engine (step 5) and templates (step 4) to reuse.
+- ConfigView currently owns cfg entirely as LOCAL state (count/work/rest/labels); step 4 (templates + theme picker + persistence) must lift or wrap this state so loading a template can reset the work/rest string inputs and persist lastConfig/theme to disk. Duration inputs are kept as strings to allow smooth editing; resolved to numbers with 25/5 fallback on start.
+- Templates section and theme picker are intentionally NOT in the config view yet (deferred to step 4). App applies a fixed DEFAULT_THEME='neon' work state; the mock's fake macOS traffic-light dots were intentionally omitted (OS provides real chrome) — only a brand-mark + 'PomPom' titlebar is rendered.
+- Mock quirk noted: mock's .step-index uses `var(--accent-work, #3ddc97)` (undefined var → always green); I deliberately used `var(--accent)` instead so the badge matches each theme's accent. Next step is #4 (templates persistence + theme picker), then #5 timer engine hook.
