@@ -14,30 +14,14 @@ This worktree is at
 
 ## Preserved key learnings (from truncated earlier iterations)
 
-- Plan step 3 DONE and verified via `npm run typecheck` + `npm run build` (both pass, 35 modules, @shared import resolves). Did NOT launch dev (renderer-only change) — full Electron launch sanity check stays reserved for step 12; launch via Bash run_in_background to kill by PID, never blanket taskkill electron.exe.
-- Shared model lives at src/shared/model.ts and is imported as '@shared/model' (alias now in vite config + tsconfig.web.json). buildTimeline/clampCount/growLabels/DEFAULT_CFG/SEED_TEMPLATES are ready for the timer engine (step 5) and templates (step 4) to reuse.
-- ConfigView currently owns cfg entirely as LOCAL state (count/work/rest/labels); step 4 (templates + theme picker + persistence) must lift or wrap this state so loading a template can reset the work/rest string inputs and persist lastConfig/theme to disk. Duration inputs are kept as strings to allow smooth editing; resolved to numbers with 25/5 fallback on start.
-- Templates section and theme picker are intentionally NOT in the config view yet (deferred to step 4). App applies a fixed DEFAULT_THEME='neon' work state; the mock's fake macOS traffic-light dots were intentionally omitted (OS provides real chrome) — only a brand-mark + 'PomPom' titlebar is rendered.
-- Mock quirk noted: mock's .step-index uses `var(--accent-work, #3ddc97)` (undefined var → always green); I deliberately used `var(--accent)` instead so the badge matches each theme's accent. Next step is #4 (templates persistence + theme picker), then #5 timer engine hook.
+- Plan step 4 DONE + verified (typecheck, build, and a real launch all pass). Next is step 5: the wall-clock timer engine hook (Date.now()-delta based, tracks stepEndsAt + accumulated paused ms), then step 6 timer view. App.handleStart currently just buildTimeline + console.log — replace that stub with the engine/timer view.
+- Persistence store lives at src/shared/store.ts (StoreData + DEFAULT_STORE) and src/main/store.ts. main/preload import it via RELATIVE path '../shared/store' (NOT the @shared alias — that alias is only wired in the renderer vite config + tsconfig.web.json; tsconfig.node.json just includes src/shared/**/*). ambientEnabled already exists in StoreData for the step-9 ambient toggle to persist.
+- Renderer accesses persistence
 
 
 [... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
 
-s
-
-Summary: Implement templates persistence + theme picker (plan step 4): durable JSON store, store:get/set IPC bridge, template chips, and a persisted theme swatch row
-
-Key changes:
-- Added src/shared/store.ts (StoreData: templates/lastConfig/theme/ambientEnabled + DEFAULT_STORE) and src/main/store.ts (cached read/write to app.getPath('userData')/pompom-store.json, merges over defaults)
-- Registered store:get/store:set ipcMain.handle in src/main/index.ts (via registerStoreIpc on app ready) and exposed window.pompom.store.get/set through preload contextBridge (ipcRenderer.invoke)
-- Reworked ConfigView.tsx to take initialCfg/templates/theme + callbacks; renders template chips (click loads), a dashed '+ Save current' chip (Custom · N×W/R), and a theme-picker swatch row (work/rest split gradient, selected ring)
-- Reworked App.tsx to load the store on mount, own templates/theme/cfg, remount ConfigView via a cfgKey on template load, and persist lastConfig on Start, templates on save, theme on pick; coerceTheme() narrows the persisted theme string to ThemeId
-- Added .theme-picker/.swatch/.swatch-fill styles to views.css; verified typecheck + build + a live npm run dev launch (no crash, store IPC registered)
-
-Key learnings:
-- Plan step 4 DONE + verified (typecheck, build, and a real launch all pass). Next is step 5: the wall-clock timer engine hook (Date.now()-delta based, tracks stepEndsAt + accumulated paused ms), then step 6 timer view. App.handleStart currently just buildTimeline + console.log — replace that stub with the engine/timer view.
-- Persistence store lives at src/shared/store.ts (StoreData + DEFAULT_STORE) and src/main/store.ts. main/preload import it via RELATIVE path '../shared/store' (NOT the @shared alias — that alias is only wired in the renderer vite config + tsconfig.web.json; tsconfig.node.json just includes src/shared/**/*). ambientEnabled already exists in StoreData for the step-9 ambient toggle to persist.
-- Renderer accesses persistence via window.pompom.store.get()/set(partial) (Promise-based, ipcRenderer.invoke). preload/index.d.ts types it automatically from `typeof api` so no manual d.ts edit was needed. store.set does a partial merge, so pass only changed keys.
+via window.pompom.store.get()/set(partial) (Promise-based, ipcRenderer.invoke). preload/index.d.ts types it automatically from `typeof api` so no manual d.ts edit was needed. store.set does a partial merge, so pass only changed keys.
 - Config state pattern: App owns cfg/theme/templates; ConfigView is remounted (React key=cfgKey, bumped on template load AND after the async store load) to re-seed its local string-buffered work/rest state. When the timer view is added, don't break this remount trick.
 - LAUNCH-CLEANUP RECIPE (avoids blanket taskkill electron.exe that kills the user's VS Code/Claude): the dev tree is cmd.exe 'electron-vite dev' -> node electron-vite -> electron.exe (+3 child electron). Find them with PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-308c740c', then `taskkill /F /T /PID <the electron-vite cmd.exe pid>` to kill just that tree. Verified this leaves other Electron apps alone.
 - Backgrounding gotcha: `npm run dev >log 2>&1 &` inside a Bash run_in_background call makes the wrapper 'complete' immediately (exit 0) while npm keeps running detached — the npm output goes to the redirected log file, not the task output file. Read the redirect target to see real dev output.
@@ -155,3 +139,20 @@ Key learnings:
 - Sanity-launch recipe that worked again: `npm run dev > /tmp/pompom-dev.log 2>&1 &` via Bash run_in_background (wrapper reports exit 0 immediately + a spurious task-completed notification; real output is in the redirect log). Log shows 'start electron app...' with no errors on success.
 - Launch-cleanup: PowerShell `Get-CimInstance Win32_Process | Where CommandLine -match 'goal-0a33a3aa'` then `taskkill /F /T /PID <electron-vite node.exe pid>` (was 33752) — this killed all 4 electron.exe + esbuild children (0 remaining). Never blanket-kill electron.exe.
 - git status shows .helm-goal/notes.md as modified — that is the orchestrator's automatic notes compaction, not a code edit; only README.md and PLAN.md were my changes.
+
+## Iteration 4 — success
+
+Summary: Verify completed PomPom v1 build: confirm typecheck + build pass and dev launch boots cleanly (all 12 plan steps already done)
+
+Key changes:
+- No code changes required — all 12 plan steps (scaffold through docs+sanity-launch) are already implemented and merged
+- Ran npm run typecheck: passes with no errors
+- Ran npm run build: passes, 41 renderer modules transformed, CSS 21.60 kB
+- Ran npm run dev in background: app booted cleanly ('start electron app...' with zero errors), then killed the worktree process tree by PID (node.exe 33188 /T)
+
+Key learnings:
+- GOAL IS COMPLETE: all 12 plan steps done and verified. This iteration only re-verified the coherent tree (typecheck+build+launch) since Iteration 3 already finished step 12. No further implement work remains unless the goal scope changes.
+- Sanity-launch recipe still works: `npm run dev > /tmp/pompom-dev.log 2>&1 &` via Bash run_in_background (wrapper exits 0 immediately + spurious task-completed notification; real output is in the redirect log — success shows 'start electron app...' with no errors).
+- Cleanup that worked: PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-0a33a3aa', then `taskkill /F /T /PID <node.exe electron-vite root PID>` (was 33188) — killed all 4 electron.exe + esbuild children, 0 remaining. Never blanket-kill electron.exe.
+- git status shows .helm-goal/notes.md as modified — that is the orchestrator's automatic notes compaction, not a code edit. No source files were touched this iteration.
+- Worktree path is goal-0a33a3aa-c6c4-44ca-8860-5fd765b92f3f; node_modules and out/ were already present so no npm install was needed this iteration.
