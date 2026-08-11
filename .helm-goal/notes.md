@@ -245,3 +245,20 @@ Key learnings:
 - plan.md now exists at .helm-goal/plan.md; implement iterations should follow it one step at a time and cross-check .helm-goal/notes.md for exact palettes/copy/geometry
 - Worktree has only OLD PLAN.md/DECISIONS.md/README.md at root plus .gitignore (node_modules/dist/out ignored); scaffold must not clobber these files
 - Mocks live only in sibling D:/Repo/Tools/PomPom/mock/*.html — read, never edit; the PLAN.md to update for 'Current status' is this worktree's older copy (currently says 'Pre-mock.')
+
+## Iteration 3 — success
+
+Summary: Scaffold electron-vite + React + TypeScript app (plan step 1): package.json dev/build scripts, main/preload/renderer, verified install/typecheck/build/launch
+
+Key changes:
+- Added package.json with dev/build/preview/typecheck scripts and deps (electron 33, electron-vite 2.3, vite 5, react 18, typescript 5)
+- Added electron.vite.config.ts (main/preload/renderer entries, @renderer alias, react plugin) and tsconfig.json + tsconfig.node.json + tsconfig.web.json project references
+- Created src/main/index.ts (single BrowserWindow, contextIsolation on, loads ELECTRON_RENDERER_URL in dev / file in prod), src/preload/index.ts + index.d.ts (contextBridge 'pompom' api stub), src/renderer/index.html + src/main.tsx + App.tsx placeholder + styles/global.css
+- Updated .gitignore to add .vite/ and *.tsbuildinfo; committed package-lock.json
+
+Key learnings:
+- Scaffold DONE and verified: `npm install` (140 pkgs), `npm run typecheck`, `npm run build`, and `npm run dev` all succeed; dev server runs on localhost:5173 and Electron launches without crashing. Build outputs to out/ (gitignored).
+- Next plan step is #2: theme system (3 CSS-var palettes in notes.md) then #3 config view. Renderer entry is src/renderer/src/App.tsx; add a styles/ or themes module there. Hash routing (#/, #/takeover, #/ambient) not yet set up — do it when adding aux windows (steps 8-9).
+- GOTCHA: to stop the dev app I ran `taskkill //F //IM electron.exe` which kills ALL electron.exe on the machine (there were ~8 pre-existing — likely the user's other Electron apps like VS Code/Claude). Future iterations: launch dev via the Bash tool's run_in_background so the process is tracked and can be killed by its own PID/tree instead of a blanket image kill.
+- preload exposes window.pompom (typed via src/preload/index.d.ts, referenced from tsconfig.web.json includes). contextIsolation:true, sandbox:false, nodeIntegration:false — keep this security posture when adding IPC.
+- TS is set up as composite project refs (tsconfig.node.json for main/preload/shared, tsconfig.web.json for renderer); *.tsbuildinfo now gitignored. A src/shared/**/* path is pre-included in both tsconfigs for future shared types (timeline model etc.).
