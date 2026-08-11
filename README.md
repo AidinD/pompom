@@ -1,4 +1,4 @@
-# Pomo
+# PomPom
 
 A Windows Pomodoro app (Electron + React) with per-pomodoro task labels, configurable work/rest durations, a fullscreen takeover screen between steps (with a grace period + confirm button), and an optional always-on-top ambient meter bar.
 
