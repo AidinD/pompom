@@ -1,46 +1,104 @@
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html,
 body,
 #root {
-  margin: 0;
   height: 100%;
 }
 
 body {
-  background: #0d0f13;
-  color: #eef1f6;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Colors/fonts come from the active theme's CSS variables (themes.css).
+     A neutral fallback keeps things readable before a theme class is applied. */
+  background: var(--app-bg, #0d0f13);
+  color: var(--text, #eef1f6);
+  font-family: var(--font, Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   -webkit-font-smoothing: antialiased;
   user-select: none;
+  min-height: 100vh;
+  transition:
+    background 0.5s var(--ease, ease),
+    color 0.5s var(--ease, ease);
 }
 
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+#root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+/* -------------------------------------------------- scaffold demo -- */
 .scaffold {
-  height: 100%;
-  display: grid;
-  place-items: center;
-}
-
-.scaffold-card {
   text-align: center;
   padding: 32px 40px;
-  border: 1px solid #2a303b;
-  border-radius: 16px;
-  background: #191d25;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition:
+    border-color 0.5s var(--ease),
+    background 0.5s var(--ease);
 }
 
-.scaffold-card h1 {
+.scaffold h1 {
   margin: 0 0 8px;
   font-size: 28px;
+  color: var(--accent);
+  transition: color 0.5s var(--ease);
 }
 
-.scaffold-card p {
+.scaffold p {
   margin: 4px 0;
 }
 
 .dim {
-  color: #9aa3b2;
+  color: var(--text-dim);
   font-size: 13px;
+}
+
+.swatch-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  padding: 0;
+}
+
+.swatch.active {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.swatch span {
+  flex: 1;
+}
+
+.state-toggle {
+  margin-top: 16px;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.5s var(--ease);
 }
