@@ -95,6 +95,17 @@ export function buildTimeline(cfg: Cfg): TimelineStep[] {
   return timeline
 }
 
+/**
+ * Format a seconds value as `MM:SS`, zero-padded. Negative values clamp to 0
+ * (ported from the mock's `fmt`). Fractional seconds are floored.
+ */
+export function fmt(s: number): string {
+  const clamped = Math.max(0, Math.floor(s))
+  const m = Math.floor(clamped / 60)
+  const ss = clamped % 60
+  return `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+}
+
 /** Seed templates shown on first run (matches the mock's two chips). */
 export const SEED_TEMPLATES: Template[] = [
   {

@@ -14,64 +14,7 @@ This worktree is at
 
 [... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
 
-use/Resume (togglePause), `Skip →` (skipStep → jumps straight
-  to takeover for next step), Stop `■` (stopSession → back to config).
-- **Toggle row**: "Ambient meter bar" switch → toggleAmbient().
-- **Ring pulse on step change**: enterStep removes+reflows+adds `.pulsing` on
-  `.window` (`void win.offsetWidth` forces reflow to restart the CSS animation).
-
-### Timer engine details (MUST get right per goal)
-- Mock uses naive `remaining -= 1` each tick (setInterval 1000ms real / 33ms
-  fast-demo). **The real app must base remaining time off `Date.now()` deltas**
-  (wall-clock), not decrement counters, so pause and background drift are
-  correct. Track e.g. `stepEndsAt` timestamp and accumulated paused time.
-- `fmt(s)`: clamp ≥0, MM:SS zero-padded.
-- On step end (`stepFinished`): if `curIdx+1 >= timeline.length` → showComplete;
-  else showTakeover(curIdx+1). Timer does NOT auto-advance; takeover gates it.
-- The mock's `fast`/demo-speed + `.mocknav` + `.speed-toggle` + `.back-link`
-  are MOCK-ONLY dev scaffolding — DO NOT port them to the app.
-
-### 3. TAKEOVER (`.takeover` overlay in mock; a SEPARATE fullscreen+alwaysOnTop
-   BrowserWindow in the app)
-- Trigger: whenever a step FINISHES (work→rest or rest→work), before next step.
-- Content: eyebrow, headline, "up next", a **grace ring** counting DOWN from
-  `GRACE_SECS = 5`, grace label, and a **Confirm & continue** button that is
-  DISABLED/dimmed (`opacity:.45; pointer-events:none`) during grace, then gets
-  `.ready` (pulsing) when grace hits 0.
-- Copy depends on the NEXT step type:
-  - next is WORK (i.e. break just ended): eyebrow "Break over", headline
-    "Back to focus", next `Up next: <b>{label} · {mins} min</b>`.
-  - next is REST: eyebrow "Nice work", headline "Time for a break", next
-    `Up next: <b>Rest · {mins} min</b>`.
-- Grace ring: SVG 150×150, r=68, `GRACE_C=2π·68`. Counts down 5→0, offset goes
-  `GRACE_C*(1 - g/5)`. At 0: graceNum "0", label "Confirm to continue", ring
-  gets `.done` (pulse-ring animation), confirmBtn `.ready`, hint "Waiting for
-  you — the timer stays paused until you confirm."
-- **CONTRACT (critical, from DECISIONS): after grace expires the timer STAYS
-  paused and does NOT auto-start. It waits indefinitely for the explicit
-  Confirm click.** confirmStep() → hide takeover → enterStep(pendingIdx).
-- In the real app: takeover is `fullscreen:true, alwaysOnTop:true`, suppresses
-  taskbar/other windows as far as Electron allows (no hard OS lock — out of
-  scope). Show it on step change, hide/destroy on confirm.
-
-### 4. SESSION COMPLETE (`#view-done`)
-- Check icon, "Session complete", summary `{count} pomodoros · {h}h {m}m
-  focused` (totalMin = count*work), "New session" → config.
-
-### AMBIENT BAR (optional, toggled from timer view)
-- App: a THIRD frameless, transparent-bg BrowserWindow pinned to top of primary
-  display, alwaysOnTop, click-through via `win.setIgnoreMouseEvents(true,
-  {forward:true})`. Thin bar (4px in mock).
-- Fill width = **elapsed** fraction of current step `((1-frac)*100)%` (mirrors
-  ring). Recolors with work/rest accent. Toggled by the switch; persist toggle.
-- In mock it's just a strip inside `.window` (`.ambient-bar.on`); in the app
-  it's a real separate window.
-
-## THEME SYSTEM — port these CSS-var palettes verbatim (3 themes)
-All themes = same markup/behavior, only CSS custom properties swap at app root.
-`.state-work`/`.state-rest` override `--accent`(+soft/glow) for hue shift.
-
-### Neon Dark (index.html) — DEFAULT. Font: Inter/sans. Uses glow.
+ml) — DEFAULT. Font: Inter/sans. Uses glow.
 ```
 --bg:#0d0f13; --bg-2:#14171d; --surface:#191d25; --surface-2:#20252f;
 --border:#2a303b; --text:#eef1f6; --text-dim:#9aa3b2; --text-faint:#5c6472;
@@ -252,3 +195,20 @@ Key learnings:
 - LAUNCH-CLEANUP RECIPE (avoids blanket taskkill electron.exe that kills the user's VS Code/Claude): the dev tree is cmd.exe 'electron-vite dev' -> node electron-vite -> electron.exe (+3 child electron). Find them with PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-308c740c', then `taskkill /F /T /PID <the electron-vite cmd.exe pid>` to kill just that tree. Verified this leaves other Electron apps alone.
 - Backgrounding gotcha: `npm run dev >log 2>&1 &` inside a Bash run_in_background call makes the wrapper 'complete' immediately (exit 0) while npm keeps running detached — the npm output goes to the redirected log file, not the task output file. Read the redirect target to see real dev output.
 - The mock has NO theme picker (each mock file is a single fixed theme); the swatch-row picker in config is my own design per the goal, using THEMES[].swatchWork/swatchRest from themes.ts for the split-gradient swatches.
+
+## Iteration 7 — success
+
+Summary: Implement wall-clock timer engine hook (plan step 5): useTimerEngine with Date.now()-delta countdown, pause/resume/skip/stop/confirm, and no-auto-advance step-finish contract
+
+Key changes:
+- Added src/renderer/src/hooks/useTimerEngine.ts: a React hook owning timeline/curIdx and per-step timing from Date.now() deltas (endsAt + frozen pausedAt), publishing a TimerSnapshot {phase, remaining, total, frac, elapsedFrac, paused, pendingIdx, ...} on a 200ms tick; actions start/pause/resume/togglePause/skip/stop/confirm and callbacks onEnterStep/onStepPending/onComplete/onStop
+- Step-finish contract mirrors the mock: on time-out it STOPS ticking, and either completes (last step) or enters phase 'awaiting' signalling the takeover for curIdx+1 — it never auto-advances; only confirm() enters the pending step
+- Added fmt(s) helper to src/shared/model.ts (clamp >=0, MM:SS zero-padded) ported from the mock, for reuse by the timer/takeover/ambient views
+- Verified npm run typecheck and npm run build both pass
+
+Key learnings:
+- Plan step 5 DONE (typecheck + build pass). Hook lives at src/renderer/src/hooks/useTimerEngine.ts; it is NOT yet imported anywhere (build still shows 35 modules / tree-shaken out) — that's intentional. Step 6 (timer view) must call useTimerEngine in App and render its snapshot, replacing App.handleStart's console.log stub with engine.start(cfg).
+- Timing internals are refs (endsAtRef/pausedAtRef/curIdxRef/phaseRef/pendingIdxRef); the interval calls a stable wrapper that reads tickRef.current so it never goes stale. remaining uses Math.ceil so the display counts whole seconds like the mock; frac = remaining/total, elapsedFrac = 1-frac (sequence strip + ambient use ELAPSED).
+- Phase model: 'idle'|'running'|'awaiting'|'complete'. skip() routes through stepFinished() -> 'awaiting' (goes to takeover for next step), matching the mock; it does NOT jump straight into the next step. confirm() only valid in 'awaiting'. stop() resets to idle and fires onStop.
+- Pure renderer/TS change this iteration; did NOT run npm run dev (reserved for step 12). When launching dev later, use Bash run_in_background and kill by the electron-vite cmd.exe PID tree (match commandline 'goal-308c740c') — never blanket taskkill electron.exe (kills the user's other Electron apps).
+- App.tsx currently applies a fixed 'work' state to document root; step 6 must toggle state-work/state-rest on #window from the engine's current step type for the accent hue shift, and pulse the ring by toggling .pulsing on #window with a forced reflow (void el.offsetWidth) on step change (onEnterStep is the natural hook).
