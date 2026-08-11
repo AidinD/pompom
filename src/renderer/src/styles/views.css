@@ -362,12 +362,34 @@
     transform: scale(0.7);
   }
 }
+/* Paper's badge dot is smaller and static (variant-b-paper.html). */
+.theme-paper .step-badge .pulse-dot {
+  width: 6px;
+  height: 6px;
+  animation: none;
+}
+/* Nature's dot sways slowly rather than pulsing (variant-d-nature.html). */
+.theme-nature .step-badge .pulse-dot {
+  animation: dotSway 3s ease-in-out infinite;
+}
+@keyframes dotSway {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.7;
+  }
+}
 
 .task-label {
   font-size: 22px;
   font-weight: 700;
   margin-bottom: 22px;
   letter-spacing: -0.01em;
+  font-family: var(--font-display, var(--font));
 }
 
 /* ring */
@@ -395,7 +417,9 @@
     stroke-dashoffset 1s linear,
     stroke 0.5s var(--ease);
 }
-/* one-shot pulse when a step starts (element is remounted via a React key) */
+/* One-shot pulse when a step starts (element is remounted via a React key).
+   Each theme uses a different step-change animation, matching its mock:
+   Neon blooms the glow, Paper (no glow) dips opacity, Nature gently grows in. */
 .ring-prog.pulse {
   animation: ringPulse 1.4s var(--ease);
 }
@@ -408,6 +432,36 @@
   }
   100% {
     filter: drop-shadow(0 0 6px var(--accent-glow));
+  }
+}
+/* Paper: no glow, so pulse the ring's opacity instead (variant-b-paper.html). */
+.theme-paper .ring-prog.pulse {
+  animation: ringPulsePaper 1s var(--ease);
+}
+@keyframes ringPulsePaper {
+  0% {
+    opacity: 1;
+  }
+  40% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+/* Nature: a gentle grow-in from 94% scale (variant-d-nature.html). */
+.theme-nature .ring-prog.pulse {
+  animation: ringGrow 1.2s var(--ease);
+}
+@keyframes ringGrow {
+  0% {
+    transform-origin: center;
+    transform: scale(0.94);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 .ring-center {
@@ -626,6 +680,7 @@ body.body-fullbleed #root {
   letter-spacing: -0.02em;
   margin-bottom: 14px;
   line-height: 1.05;
+  font-family: var(--font-display, var(--font));
 }
 .to-next {
   font-size: 17px;
