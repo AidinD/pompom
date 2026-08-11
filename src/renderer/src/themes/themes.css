@@ -70,7 +70,10 @@
   --radius: 14px;
   --radius-sm: 9px;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --font: 'Iowan Old Style', 'Georgia', 'Charter', 'Inter', serif;
+  /* Paper mixes fonts like the mock: Inter for chrome/UI, serif for the big
+     display headlines (task label + takeover headline) via --font-display. */
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Iowan Old Style', 'Georgia', 'Charter', 'Inter', serif;
   --app-bg: radial-gradient(900px 560px at 50% -8%, #241d15 0%, var(--bg) 65%);
 }
 .theme-paper.state-work {

@@ -14,75 +14,26 @@ This worktree is at
 
 ## Preserved key learnings (from truncated earlier iterations)
 
-- Mocks are NOT in this worktree/branch — read them from D:/Repo/Tools/PomPom/mock/index.html, variant-b-paper.html, variant-d-nature.html (uncommitted in the main repo, readable on disk). compare.html is just an index page.
-- The worktree's PLAN.md/DECISIONS.md are the OLD pre-mock versions; the main repo has newer fuller copies. The PLAN.md we must update is the worktree's older copy.
-- node v24.11.1 / npm 11.6.2 available; Windows + Git Bash. Sanity check requires `npm run dev` to launch Electron without crashing, then stop it.
-- Timeline rule: work,rest,...,work with NO trailing rest; labels attach to work steps only; count clamped 1-8. Takeover must NOT auto-advance after 5s grace — requires explicit Confirm click.
-- Real app must derive remaining time from Date.now() deltas (not decrement counters). Mock's fast/demo-speed, .mocknav, .speed-toggle, .back-link are mock-only scaffolding — do not port.
-- Only 3 themes ship (Slate Mono dropped, Warm Paper is dark). Neon uses --accent-glow; Paper/Nature have no glow and use --accent-ink for on-accent text — parameterize on-accent text and glow as CSS vars across all themes.
-- plan.md now exists at .helm-goal/plan.md; implement iterations should follow it one step at a time and cross-check .helm-goal/notes.md for exact palettes/copy/geometry
-- Worktree has only OLD PLAN.md/DECISIONS.md/README.md at root plus .gitignore (node_modules/dist/out ignored); scaffold must not clobber these files
-- Mocks live only in sibling D:/Repo/Tools/PomPom/mock/*.html — read, never edit; the PLAN.md to update for 'Current status' is this worktree's older copy (currently says 'Pre-mock.')
-
-
-[... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
-
-
-Summary: Scaffold electron-vite + React + TypeScript app (plan step 1): package.json dev/build scripts, main/preload/renderer, verified install/typecheck/build/launch
-
-Key changes:
-- Added package.json with dev/build/preview/typecheck scripts and deps (electron 33, electron-vite 2.3, vite 5, react 18, typescript 5)
-- Added electron.vite.config.ts (main/preload/renderer entries, @renderer alias, react plugin) and tsconfig.json + tsconfig.node.json + tsconfig.web.json project references
-- Created src/main/index.ts (single BrowserWindow, contextIsolation on, loads ELECTRON_RENDERER_URL in dev / file in prod), src/preload/index.ts + index.d.ts (contextBridge 'pompom' api stub), src/renderer/index.html + src/main.tsx + App.tsx placeholder + styles/global.css
-- Updated .gitignore to add .vite/ and *.tsbuildinfo; committed package-lock.json
-
-Key learnings:
 - Scaffold DONE and verified: `npm install` (140 pkgs), `npm run typecheck`, `npm run build`, and `npm run dev` all succeed; dev server runs on localhost:5173 and Electron launches without crashing. Build outputs to out/ (gitignored).
 - Next plan step is #2: theme system (3 CSS-var palettes in notes.md) then #3 config view. Renderer entry is src/renderer/src/App.tsx; add a styles/ or themes module there. Hash routing (#/, #/takeover, #/ambient) not yet set up — do it when adding aux windows (steps 8-9).
 - GOTCHA: to stop the dev app I ran `taskkill //F //IM electron.exe` which kills ALL electron.exe on the machine (there were ~8 pre-existing — likely the user's other Electron apps like VS Code/Claude). Future iterations: launch dev via the Bash tool's run_in_background so the process is tracked and can be killed by its own PID/tree instead of a blanket image kill.
 - preload exposes window.pompom (typed via src/preload/index.d.ts, referenced from tsconfig.web.json includes). contextIsolation:true, sandbox:false, nodeIntegration:false — keep this security posture when adding IPC.
 - TS is set up as composite project refs (tsconfig.node.json for main/preload/shared, tsconfig.web.json for renderer); *.tsbuildinfo now gitignored. A src/shared/**/* path is pre-included in both tsconfigs for future shared types (timeline model etc.).
-
-## Iteration 4 — success
-
-Summary: Implement theme system (plan step 2): 3 CSS-variable palettes + applyTheme helper, verified typecheck/build
-
-Key changes:
-- Added src/renderer/src/themes/themes.css: `.theme-neon` (default, has glow), `.theme-paper` and `.theme-nature` (glow set to transparent) with base vars + compound `.theme-X.state-work`/`.state-rest` accent overrides. Ported all palettes verbatim from mock/index.html + variant-b-paper.html + variant-d-nature.html, incl. --radius/--radius-sm, --ease, per-theme --font, and a new --app-bg var carrying each theme's body gradient. Parameterized --accent-ink in ALL themes (neon #0d0f13).
-- Added src/renderer/src/themes/themes.ts: ThemeId ('neon'|'paper'|'nature'), THEMES[] with name+swatch colors, DEFAULT_THEME='neon', getTheme(), and applyTheme(root, id, state) which is idempotent (strips old theme/state classes then adds theme class + state-work/state-rest on the SAME element so compound selectors match).
-- Rewrote global.css to consume theme vars (body uses --app-bg/--text/--font with neutral fallbacks) + added scaffold-demo styles (swatch buttons, state toggle).
-- Updated App.tsx to apply the theme to document.documentElement via useEffect and demo live theme switching + work/rest accent shift. Imported themes.css before global.css in main.tsx.
-
-Key learnings:
 - CRITICAL contract for state hue shift: theme class AND state class must be on the SAME element (applyTheme puts both on document.documentElement) because themes.css uses compound selectors `.theme-neon.state-work` etc (theme-scoped, since all 3 themes coexist in one bundle — unlike the single-theme mocks which used bare `.state-work`).
 - --accent-glow is `transparent` for paper/nature so glow effects (box-shadow/drop-shadow using it) degrade gracefully; only neon has real glow. Use `--accent-glow` freely in later components.
 - --app-bg is a NEW var I added (not in mocks by that name) holding each theme's body radial-gradient; body reads it. Later window/component backgrounds should use --bg-2/--surface etc as in mocks.
 - Next plan step is #3: Config view (React) at #/. App.tsx currently holds a theme-demo scaffold — replace its body with the real config view but KEEP the applyTheme(document.documentElement, theme, state) useEffect pattern. Theme picker swatch UI + persistence is step 4.
 - typecheck + build both pass. Did NOT run `npm run dev` this iteration (pure renderer/CSS change, no main-process change); full launch sanity check is reserved for step 12. Reminder from iter 3: launch dev via Bash run_in_background so it can be killed by PID (avoid blanket `taskkill //IM electron.exe` which kills the user's other Electron apps).
-
-## Iteration 4 — success
-
-Summary: Implement theme system (plan step 2): three CSS-variable palettes plus applyTheme helper, verified typecheck and build
-
-Key changes:
-- Added src/renderer/src/themes/themes.css with .theme-neon (default, glow), .theme-paper and .theme-nature (glow transparent) palettes ported verbatim from the three mocks, incl. --radius/--ease/--font/--accent-ink and a new --app-bg body-gradient var, with compound .theme-X.state-work/.state-rest accent hue overrides
-- Added src/renderer/src/themes/themes.ts exposing ThemeId, THEMES[] (name + swatch colors), DEFAULT_THEME='neon', getTheme(), and an idempotent applyTheme(root,id,state) that applies theme+state classes to one element
-- Rewrote global.css to consume theme CSS variables (body uses --app-bg/--text/--font with neutral fallbacks) and added scaffold-demo swatch/toggle styles
-- Updated App.tsx to apply the theme to document.documentElement and demo live theme switching + work/rest accent shift; imported themes.css before global.css in main.tsx
-
-Key learnings:
 - Theme class and state class MUST live on the same element (applyTheme uses document.documentElement) because themes.css uses theme-scoped compound selectors like .theme-neon.state-work — all three themes coexist in one bundle, unlike the single-theme mocks that used bare .state-work
 - --accent-glow is transparent for paper/nature so glow effects degrade gracefully; only neon has real glow — later components can use --accent-glow freely
 - --app-bg is a new var (not named in mocks) carrying each theme's body radial-gradient; component backgrounds should still use --bg-2/--surface as in the mocks
 - Next is plan step 3 (Config view at #/): replace App.tsx body with the real config view but keep the applyTheme(document.documentElement, theme, state) useEffect; theme picker + persistence come in step 4
 - typecheck + build both pass; did not run npm run dev (pure renderer/CSS change) — full launch sanity check is reserved for step 12, and dev should be launched via Bash run_in_background to kill by PID rather than a blanket electron.exe taskkill
 
-## Iteration 5 — success
 
-Summary: Implement config view (plan step 3): shared session model + React ConfigView with pomodoro stepper, work/rest inputs, task-label rows, and start-to-timeline wiring
+[... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
 
-Key changes:
-- Added src/shared/model.ts: Cfg/TimelineStep/Template types, LABELS_DEFAULT, clampCount, growLabels, buildTimeline (work,rest,...,work with no trailing rest), DEFAULT_CFG, and SEED_TEMPLATES — ported verbatim from mock/index.html
+_DEFAULT, clampCount, growLabels, buildTimeline (work,rest,...,work with no trailing rest), DEFAULT_CFG, and SEED_TEMPLATES — ported verbatim from mock/index.html
 - Added src/renderer/src/views/ConfigView.tsx: 'New session' form with – count + stepper (clamp 1..8, grows labels, disables at bounds), work/rest number inputs (raw-string buffered, 25/5 fallback on start), one editable task-label row per pomodoro with {work}m hint, hint copy, and Start button that builds the timeline via onStart
 - Added src/renderer/src/styles/views.css: ported .window/.titlebar/.brand-mark/.view/config-form/.btn styles from the mock, using theme CSS vars (var(--accent-ink) for on-accent text, var(--accent) for step-index badges) so all three themes restyle automatically
 - Rewrote App.tsx to render the themed .window frame + brand titlebar + ConfigView, applying DEFAULT_THEME (work state) to document root; Start logs cfg+timeline as a stub until the timer view exists
@@ -193,3 +144,21 @@ Key learnings:
 - Push cadence: App.tsx effect keyed on engine.elapsedFrac (changes ~1x/sec since remaining uses Math.ceil) — no separate loop. Pause is frozen by early-returning when engine.paused (no publish). Main caches lastAmbientTick and re-sends it after did-finish-load + exposes ambient:get for a pull-seed, dodging the load race like the takeover.
 - Launch-cleanup that worked: `npm run dev > /tmp/pompom-dev.log 2>&1 &` via Bash run_in_background (wrapper exits 0 immediately; real output in the redirect log). Find procs with PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-0a33a3aa', then `taskkill /F /T /PID <electron-vite node.exe pid>` (was 34532) to kill just that tree. Never blanket-kill electron.exe.
 - Remaining work: step 11 (polish vs the three mock HTML files at D:/Repo/Tools/PomPom/mock/*.html — easing cubic-bezier(.22,.61,.36,1), ring pulse/grow-in, accent transitions, Neon-only glow) and step 12 (README + PLAN.md 'Current status' update + final sanity launch).
+
+## Iteration 2 — success
+
+Summary: Polish pass (plan step 11): add theme-scoped ring step-change animations, badge-dot behavior, and Paper's serif display font to match the three mocks
+
+Key changes:
+- views.css: added theme-scoped ring step-change animations — Neon keeps the glow-bloom ringPulse, Paper gets ringPulsePaper (opacity dip, was invisible before since Paper has no glow), Nature gets ringGrow (scale .94→1 grow-in), ported verbatim from each mock
+- views.css: added theme-scoped badge-dot rules — Paper dot is static/6px, Nature dot uses dotSway 3s (Neon keeps dotPulse)
+- views.css: .task-label and .to-headline now use var(--font-display, var(--font)) so Paper renders those big headlines in serif while the rest of its UI stays Inter (matching variant-b-paper.html)
+- themes.css: Paper --font switched to the Inter stack and new --font-display holds the Iowan/Georgia serif; Neon/Nature omit --font-display and fall back to their Inter --font
+
+Key learnings:
+- Plan step 11 (polish) is DONE and verified via typecheck + build (41 modules, CSS 21.6 kB). Only plan step 12 remains: update README.md (real npm install/dev/build), update PLAN.md 'Current status', and do the final human-visible `npm run dev` sanity launch of config→timer→takeover→ambient, then stop the process by PID.
+- Root cause of the main drift fixed this iter: the app applied Neon's glow-based ringPulse to ALL themes, but Paper/Nature have --accent-glow: transparent, so their step-change ring pulse was completely invisible. Each mock uses a DIFFERENT step-change anim (Neon glow-bloom / Paper opacity dip / Nature scale grow-in) — now theme-scoped via `.theme-paper .ring-prog.pulse` / `.theme-nature .ring-prog.pulse` (theme class is on document.documentElement, an ancestor, so the descendant selector works).
+- Pulse mechanism unchanged: `.ring-prog` has className 'ring-prog pulse' + key={curIdx} so it remounts and replays the one-shot animation on step entry — do NOT reintroduce the mock's imperative .window.pulsing + offsetWidth reflow.
+- Easing (cubic-bezier .22,.61,.36,1 via --ease), accent hue transitions, glow-only-on-Neon, and sequence-strip elapsed fill were already faithful — no change needed there.
+- Minor per-theme nuances I intentionally left (not glaring, out of scope): Paper's task-label font-weight is 600 in the mock vs 700 in-app; Nature's btn-confirm is a 999px pill in the mock vs 14px in-app. A future polish iteration could match these if desired.
+- Pure-CSS change, so I did NOT launch dev (reserved for step 12's combined docs+sanity-launch). Note: .helm-goal/notes.md shows as modified in git — that's the orchestrator's automatic notes compaction, not my edit.
