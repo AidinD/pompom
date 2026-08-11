@@ -4,7 +4,8 @@
 
 The Electron + React (TypeScript) app is built to full v1 scope. Implemented:
 electron-vite scaffold; the three-theme CSS-variable system (Neon Dark, Warm
-Paper Dark, Nature); the config view with per-pomodoro task labels, template
+Paper Dark, Nature — see `mock/` for the design references these themes are
+ported from); the config view with per-pomodoro task labels, template
 save/load, and a theme picker; disk persistence of templates / last config /
 theme / ambient toggle (`pompom-store.json` in userData); the wall-clock timer
 engine (`Date.now()`-delta authority) with pause/resume/skip/stop; the timer
@@ -27,6 +28,7 @@ Deferred to later (not in v1):
 - Clean, minimal visual style (not "gamer") with subtle animations and pulsing on step changes.
 - Optional setting: an always-on-top ambient meter bar (health-bar style) at the top of the screen, filling/draining with the current step's progress.
 - Save reusable session templates locally.
+- Theme picker in config: ship multiple built-in visual themes (see mock/) as CSS-var swaps, selectable per session/globally.
 
 ## Out of scope (v1)
 
