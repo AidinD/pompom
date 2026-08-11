@@ -262,3 +262,37 @@ Key learnings:
 - GOTCHA: to stop the dev app I ran `taskkill //F //IM electron.exe` which kills ALL electron.exe on the machine (there were ~8 pre-existing — likely the user's other Electron apps like VS Code/Claude). Future iterations: launch dev via the Bash tool's run_in_background so the process is tracked and can be killed by its own PID/tree instead of a blanket image kill.
 - preload exposes window.pompom (typed via src/preload/index.d.ts, referenced from tsconfig.web.json includes). contextIsolation:true, sandbox:false, nodeIntegration:false — keep this security posture when adding IPC.
 - TS is set up as composite project refs (tsconfig.node.json for main/preload/shared, tsconfig.web.json for renderer); *.tsbuildinfo now gitignored. A src/shared/**/* path is pre-included in both tsconfigs for future shared types (timeline model etc.).
+
+## Iteration 4 — success
+
+Summary: Implement theme system (plan step 2): 3 CSS-variable palettes + applyTheme helper, verified typecheck/build
+
+Key changes:
+- Added src/renderer/src/themes/themes.css: `.theme-neon` (default, has glow), `.theme-paper` and `.theme-nature` (glow set to transparent) with base vars + compound `.theme-X.state-work`/`.state-rest` accent overrides. Ported all palettes verbatim from mock/index.html + variant-b-paper.html + variant-d-nature.html, incl. --radius/--radius-sm, --ease, per-theme --font, and a new --app-bg var carrying each theme's body gradient. Parameterized --accent-ink in ALL themes (neon #0d0f13).
+- Added src/renderer/src/themes/themes.ts: ThemeId ('neon'|'paper'|'nature'), THEMES[] with name+swatch colors, DEFAULT_THEME='neon', getTheme(), and applyTheme(root, id, state) which is idempotent (strips old theme/state classes then adds theme class + state-work/state-rest on the SAME element so compound selectors match).
+- Rewrote global.css to consume theme vars (body uses --app-bg/--text/--font with neutral fallbacks) + added scaffold-demo styles (swatch buttons, state toggle).
+- Updated App.tsx to apply the theme to document.documentElement via useEffect and demo live theme switching + work/rest accent shift. Imported themes.css before global.css in main.tsx.
+
+Key learnings:
+- CRITICAL contract for state hue shift: theme class AND state class must be on the SAME element (applyTheme puts both on document.documentElement) because themes.css uses compound selectors `.theme-neon.state-work` etc (theme-scoped, since all 3 themes coexist in one bundle — unlike the single-theme mocks which used bare `.state-work`).
+- --accent-glow is `transparent` for paper/nature so glow effects (box-shadow/drop-shadow using it) degrade gracefully; only neon has real glow. Use `--accent-glow` freely in later components.
+- --app-bg is a NEW var I added (not in mocks by that name) holding each theme's body radial-gradient; body reads it. Later window/component backgrounds should use --bg-2/--surface etc as in mocks.
+- Next plan step is #3: Config view (React) at #/. App.tsx currently holds a theme-demo scaffold — replace its body with the real config view but KEEP the applyTheme(document.documentElement, theme, state) useEffect pattern. Theme picker swatch UI + persistence is step 4.
+- typecheck + build both pass. Did NOT run `npm run dev` this iteration (pure renderer/CSS change, no main-process change); full launch sanity check is reserved for step 12. Reminder from iter 3: launch dev via Bash run_in_background so it can be killed by PID (avoid blanket `taskkill //IM electron.exe` which kills the user's other Electron apps).
+
+## Iteration 4 — success
+
+Summary: Implement theme system (plan step 2): three CSS-variable palettes plus applyTheme helper, verified typecheck and build
+
+Key changes:
+- Added src/renderer/src/themes/themes.css with .theme-neon (default, glow), .theme-paper and .theme-nature (glow transparent) palettes ported verbatim from the three mocks, incl. --radius/--ease/--font/--accent-ink and a new --app-bg body-gradient var, with compound .theme-X.state-work/.state-rest accent hue overrides
+- Added src/renderer/src/themes/themes.ts exposing ThemeId, THEMES[] (name + swatch colors), DEFAULT_THEME='neon', getTheme(), and an idempotent applyTheme(root,id,state) that applies theme+state classes to one element
+- Rewrote global.css to consume theme CSS variables (body uses --app-bg/--text/--font with neutral fallbacks) and added scaffold-demo swatch/toggle styles
+- Updated App.tsx to apply the theme to document.documentElement and demo live theme switching + work/rest accent shift; imported themes.css before global.css in main.tsx
+
+Key learnings:
+- Theme class and state class MUST live on the same element (applyTheme uses document.documentElement) because themes.css uses theme-scoped compound selectors like .theme-neon.state-work — all three themes coexist in one bundle, unlike the single-theme mocks that used bare .state-work
+- --accent-glow is transparent for paper/nature so glow effects degrade gracefully; only neon has real glow — later components can use --accent-glow freely
+- --app-bg is a new var (not named in mocks) carrying each theme's body radial-gradient; component backgrounds should still use --bg-2/--surface as in the mocks
+- Next is plan step 3 (Config view at #/): replace App.tsx body with the real config view but keep the applyTheme(document.documentElement, theme, state) useEffect; theme picker + persistence come in step 4
+- typecheck + build both pass; did not run npm run dev (pure renderer/CSS change) — full launch sanity check is reserved for step 12, and dev should be launched via Bash run_in_background to kill by PID rather than a blanket electron.exe taskkill

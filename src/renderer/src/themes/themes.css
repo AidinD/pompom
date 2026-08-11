@@ -1,0 +1,115 @@
+/* ============================================================
+   PomPom — theme system
+   Three swappable palettes ported verbatim from the mocks:
+     mock/index.html          -> Neon Dark   (.theme-neon,  default)
+     mock/variant-b-paper.html -> Warm Paper  (.theme-paper)
+     mock/variant-d-nature.html-> Nature      (.theme-nature)
+
+   Only CSS custom properties differ between themes; markup and
+   behavior are identical. The accent hue shifts between WORK and
+   REST via the .state-work / .state-rest classes, which are applied
+   on the SAME element as the theme class so the compound selectors
+   below match (see applyTheme in themes.ts).
+
+   Parameterized across ALL themes so the rest of the app never
+   special-cases a theme:
+     --accent-ink : text color on top of accent-filled buttons
+     --accent-glow: glow color (transparent where a theme has no glow)
+   ============================================================ */
+
+/* -------------------------------------------------- NEON DARK ----- */
+.theme-neon {
+  --bg: #0d0f13;
+  --bg-2: #14171d;
+  --surface: #191d25;
+  --surface-2: #20252f;
+  --border: #2a303b;
+  --text: #eef1f6;
+  --text-dim: #9aa3b2;
+  --text-faint: #5c6472;
+
+  /* work default */
+  --accent: #3ddc97;
+  --accent-soft: rgba(61, 220, 151, 0.14);
+  --accent-glow: rgba(61, 220, 151, 0.38);
+  --accent-ink: #0d0f13;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --app-bg: radial-gradient(1200px 700px at 50% -10%, #161b24 0%, var(--bg) 60%);
+}
+.theme-neon.state-work {
+  --accent: #3ddc97;
+  --accent-soft: rgba(61, 220, 151, 0.14);
+  --accent-glow: rgba(61, 220, 151, 0.4);
+}
+.theme-neon.state-rest {
+  --accent: #ffab4d;
+  --accent-soft: rgba(255, 171, 77, 0.14);
+  --accent-glow: rgba(255, 171, 77, 0.4);
+}
+
+/* ----------------------------------------------- WARM PAPER DARK -- */
+.theme-paper {
+  --bg: #1b1712;
+  --bg-2: #221c15;
+  --surface: #262019;
+  --surface-2: #2e271d;
+  --border: #3d3324;
+  --text: #efe6d4;
+  --text-dim: #b7a98d;
+  --text-faint: #7c715c;
+
+  --accent: #d99567;
+  --accent-soft: rgba(217, 149, 103, 0.14);
+  --accent-glow: transparent; /* paper has no glow */
+  --accent-ink: #241b11;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --font: 'Iowan Old Style', 'Georgia', 'Charter', 'Inter', serif;
+  --app-bg: radial-gradient(900px 560px at 50% -8%, #241d15 0%, var(--bg) 65%);
+}
+.theme-paper.state-work {
+  --accent: #d99567;
+  --accent-soft: rgba(217, 149, 103, 0.14);
+}
+.theme-paper.state-rest {
+  --accent: #9db179;
+  --accent-soft: rgba(157, 177, 121, 0.14);
+}
+
+/* ---------------------------------------------------- NATURE ------ */
+.theme-nature {
+  --bg: #11150e;
+  --bg-2: #161c11;
+  --surface: #1a2114;
+  --surface-2: #212a19;
+  --border: #2c3722;
+  --text: #e7ecd9;
+  --text-dim: #9fac89;
+  --text-faint: #616f4c;
+
+  --accent: #86a563;
+  --accent-soft: rgba(134, 165, 99, 0.14);
+  --accent-glow: transparent; /* nature has no glow */
+  --accent-ink: #12160c;
+
+  --radius: 18px;
+  --radius-sm: 12px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --app-bg: radial-gradient(700px 420px at 15% 0%, rgba(134, 165, 99, 0.05), transparent 60%),
+    radial-gradient(700px 420px at 100% 100%, rgba(198, 136, 63, 0.04), transparent 60%), var(--bg);
+}
+.theme-nature.state-work {
+  --accent: #86a563;
+  --accent-soft: rgba(134, 165, 99, 0.14);
+}
+.theme-nature.state-rest {
+  --accent: #c6883f;
+  --accent-soft: rgba(198, 136, 63, 0.14);
+}
