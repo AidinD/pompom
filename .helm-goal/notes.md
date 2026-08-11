@@ -12,27 +12,9 @@ DECISIONS.md / PLAN.md (Fas 3 Point 11) in the Helm repo for why.
 This worktree is at
 `D:/Repo/Tools/PomPom-worktrees/goal-308c74
 
-## Preserved key learnings (from truncated earlier iterations)
-
-- Plan step 4 DONE + verified (typecheck, build, and a real launch all pass). Next is step 5: the wall-clock timer engine hook (Date.now()-delta based, tracks stepEndsAt + accumulated paused ms), then step 6 timer view. App.handleStart currently just buildTimeline + console.log — replace that stub with the engine/timer view.
-- Persistence store lives at src/shared/store.ts (StoreData + DEFAULT_STORE) and src/main/store.ts. main/preload import it via RELATIVE path '../shared/store' (NOT the @shared alias — that alias is only wired in the renderer vite config + tsconfig.web.json; tsconfig.node.json just includes src/shared/**/*). ambientEnabled already exists in StoreData for the step-9 ambient toggle to persist.
-- Renderer accesses persistence
-
-
 [... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
 
-via window.pompom.store.get()/set(partial) (Promise-based, ipcRenderer.invoke). preload/index.d.ts types it automatically from `typeof api` so no manual d.ts edit was needed. store.set does a partial merge, so pass only changed keys.
-- Config state pattern: App owns cfg/theme/templates; ConfigView is remounted (React key=cfgKey, bumped on template load AND after the async store load) to re-seed its local string-buffered work/rest state. When the timer view is added, don't break this remount trick.
-- LAUNCH-CLEANUP RECIPE (avoids blanket taskkill electron.exe that kills the user's VS Code/Claude): the dev tree is cmd.exe 'electron-vite dev' -> node electron-vite -> electron.exe (+3 child electron). Find them with PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-308c740c', then `taskkill /F /T /PID <the electron-vite cmd.exe pid>` to kill just that tree. Verified this leaves other Electron apps alone.
-- Backgrounding gotcha: `npm run dev >log 2>&1 &` inside a Bash run_in_background call makes the wrapper 'complete' immediately (exit 0) while npm keeps running detached — the npm output goes to the redirected log file, not the task output file. Read the redirect target to see real dev output.
-- The mock has NO theme picker (each mock file is a single fixed theme); the swatch-row picker in config is my own design per the goal, using THEMES[].swatchWork/swatchRest from themes.ts for the split-gradient swatches.
-
-## Iteration 7 — success
-
-Summary: Implement wall-clock timer engine hook (plan step 5): useTimerEngine with Date.now()-delta countdown, pause/resume/skip/stop/confirm, and no-auto-advance step-finish contract
-
-Key changes:
-- Added src/renderer/src/hooks/useTimerEngine.ts: a React hook owning timeline/curIdx and per-step timing from Date.now() deltas (endsAt + frozen pausedAt), publishing a TimerSnapshot {phase, remaining, total, frac, elapsedFrac, paused, pendingIdx, ...} on a 200ms tick; actions start/pause/resume/togglePause/skip/stop/confirm and callbacks onEnterStep/onStepPending/onComplete/onStop
+/src/hooks/useTimerEngine.ts: a React hook owning timeline/curIdx and per-step timing from Date.now() deltas (endsAt + frozen pausedAt), publishing a TimerSnapshot {phase, remaining, total, frac, elapsedFrac, paused, pendingIdx, ...} on a 200ms tick; actions start/pause/resume/togglePause/skip/stop/confirm and callbacks onEnterStep/onStepPending/onComplete/onStop
 - Step-finish contract mirrors the mock: on time-out it STOPS ticking, and either completes (last step) or enters phase 'awaiting' signalling the takeover for curIdx+1 — it never auto-advances; only confirm() enters the pending step
 - Added fmt(s) helper to src/shared/model.ts (clamp >=0, MM:SS zero-padded) ported from the mock, for reuse by the timer/takeover/ambient views
 - Verified npm run typecheck and npm run build both pass
@@ -156,3 +138,19 @@ Key learnings:
 - Cleanup that worked: PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-0a33a3aa', then `taskkill /F /T /PID <node.exe electron-vite root PID>` (was 33188) — killed all 4 electron.exe + esbuild children, 0 remaining. Never blanket-kill electron.exe.
 - git status shows .helm-goal/notes.md as modified — that is the orchestrator's automatic notes compaction, not a code edit. No source files were touched this iteration.
 - Worktree path is goal-0a33a3aa-c6c4-44ca-8860-5fd765b92f3f; node_modules and out/ were already present so no npm install was needed this iteration.
+
+## Iteration 5 — success
+
+Summary: Polish pass (plan step 11): theme-scope the takeover Confirm button and Paper task-label to match the Paper/Nature mocks (999px pill, brightness hover, no glow-pulse; lighter serif headline)
+
+Key changes:
+- views.css: added .theme-paper/.theme-nature overrides for .btn-confirm — 999px pill radius, animation:none on .ready (their transparent --accent-glow made confirmPulse invisible), and filter:brightness(1.08) hover instead of the invisible glow box-shadow, matching variant-b-paper.html/variant-d-nature.html
+- views.css: added .theme-paper .task-label override (24px / weight 600 / 24px margin / -0.005em) to match variant-b-paper.html's lighter serif headline; Neon/Nature keep the default 22px/700
+- Verified npm run typecheck and npm run build both pass (41 modules, CSS 22.37 kB)
+
+Key learnings:
+- All 12 plan steps were already DONE/merged before this iteration; this closed out the two minor theme-scoped btn-confirm/task-label drifts that iteration 2 had explicitly deferred as out-of-scope — same class of bug as iter 2's ring-pulse fix (Neon-only styling wrongly applied to all three themes, invisible on Paper/Nature because their --accent-glow is transparent).
+- Only Neon uses btn-confirm radius 14px + confirmPulse glow animation + glow box-shadow hover; Paper AND Nature mocks both use a 999px pill + NO confirmPulse + filter:brightness(1.08) hover. Theme class (.theme-paper/.theme-nature) is on documentElement — an ancestor of the takeover's .btn-confirm — so descendant selectors work; TakeoverView calls applyTheme(document.documentElement, …).
+- Pure-CSS change: did NOT launch dev (consistent with iter 2). typecheck+build are sufficient verification for CSS-only edits; a human-visible launch remains the only way to confirm actual ambient-strip rendering but nothing here alters window/IPC behavior. node_modules was already present (no npm install needed).
+- git shows .helm-goal/notes.md as modified — that is the orchestrator's automatic notes compaction, not a code edit; only views.css was my change.
+- The goal is effectively complete; remaining potential future work is only genuinely-deferred scope (packaging/distribution, real app icon, configurable grace period) documented in PLAN.md's Deferred list — no open plan steps remain.

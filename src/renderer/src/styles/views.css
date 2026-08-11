@@ -391,6 +391,13 @@
   letter-spacing: -0.01em;
   font-family: var(--font-display, var(--font));
 }
+/* Paper's serif headline is lighter/larger in variant-b-paper.html. */
+.theme-paper .task-label {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 24px;
+  letter-spacing: -0.005em;
+}
 
 /* ring */
 .ring-wrap {
@@ -786,6 +793,23 @@ body.body-fullbleed #root {
   50% {
     box-shadow: 0 10px 56px -2px var(--accent-glow);
   }
+}
+/* Paper & Nature have transparent --accent-glow, so the glow-based confirmPulse
+   and box-shadow hover are invisible. Both mocks instead use a 999px pill and a
+   brightness hover for the ready-state feedback (matches variant-b/variant-d). */
+.theme-paper .btn-confirm,
+.theme-nature .btn-confirm {
+  border-radius: 999px;
+}
+.theme-paper .btn-confirm.ready,
+.theme-nature .btn-confirm.ready {
+  animation: none;
+}
+.theme-paper .btn-confirm.ready:hover,
+.theme-nature .btn-confirm.ready:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: none;
 }
 .to-confirm-hint {
   font-size: 12px;
