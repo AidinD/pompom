@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { StoreData } from '../shared/store'
-import type { TakeoverStep } from '../shared/ipc'
+import type { AmbientTick, TakeoverStep } from '../shared/ipc'
 
 // The PomPom API surface exposed to the renderer. Persistence (durable JSON
 // store) lands in plan step 4; the takeover multi-window bridge in step 8
@@ -34,6 +34,20 @@ const api = {
       const listener = (): void => cb()
       ipcRenderer.on('takeover:confirmed', listener)
       return () => ipcRenderer.removeListener('takeover:confirmed', listener)
+    }
+  },
+  ambient: {
+    /** (main window) Show or hide the always-on-top ambient meter bar. */
+    setVisible: (visible: boolean): void => ipcRenderer.send('ambient:setVisible', visible),
+    /** (main window) Push the current elapsed fraction / accent to the bar. */
+    push: (tick: AmbientTick): void => ipcRenderer.send('ambient:push', tick),
+    /** (ambient window) Fetch the last tick on mount (seed before the next push). */
+    get: (): Promise<AmbientTick | null> => ipcRenderer.invoke('ambient:get'),
+    /** (ambient window) Subscribe to live ticks. Returns an unsubscribe. */
+    onTick: (cb: (tick: AmbientTick) => void): (() => void) => {
+      const listener = (_e: unknown, tick: AmbientTick): void => cb(tick)
+      ipcRenderer.on('ambient:tick', listener)
+      return () => ipcRenderer.removeListener('ambient:tick', listener)
     }
   }
 }

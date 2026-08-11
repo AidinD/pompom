@@ -173,3 +173,23 @@ Key learnings:
 - Takeover window is fullscreen+alwaysOnTop+skipTaskbar+frame:false with setAlwaysOnTop(true,'screen-saver'); it covers the main window (which stays behind rendering the frozen just-finished step). There is intentionally NO Stop control inside the takeover (matches mock) — only Confirm advances. Grace countdown derives from Date.now() delta (whole-second ceil) with the CSS 1s-linear ring transition for smoothness.
 - preload ipcRenderer.on listeners are typed (_e: unknown, ...) which passes strictFunctionTypes (unknown is a supertype of IpcRendererEvent). onStep/onConfirmed return an unsubscribe that calls removeListener — call it in the effect cleanup (StrictMode double-mounts, so net one listener).
 - CSS: takeover uses body.body-fullbleed #root { padding:0 } (class added by main.tsx on the takeover route) to defeat global.css's #root centering padding so the overlay is edge-to-edge. Confirm button uses var(--accent-ink) not the mock's hardcoded #0d0f13 so it works across all 3 themes; grace-prog glow uses --accent-glow (transparent on paper/nature).
+
+## Iteration 1 — success
+
+Summary: Implement ambient bar window + IPC state fan-out (plan steps 9-10): frameless transparent click-through always-on-top strip driven live from the timer engine
+
+Key changes:
+- Added AmbientTick payload type to src/shared/ipc.ts
+- src/main/index.ts: getAmbientWindow() (frameless/transparent/alwaysOnTop/skipTaskbar/non-focusable strip pinned full-width to top of primary display via screen bounds, click-through via setIgnoreMouseEvents after load) + registerAmbientIpc (ambient:setVisible/push/get with destroyed-window guards) + teardown with main window
+- src/preload/index.ts: exposed window.pompom.ambient.setVisible/push/get/onTick
+- New src/renderer/src/views/AmbientView.tsx: dumb elapsed-fraction fill bar, seeds via get() then onTick, syncs accent to pushed theme+state
+- src/renderer/src/main.tsx: route #/ambient -> AmbientView with body-ambient class; views.css: transparent-document + ambient-bar/fill styles (accent gradient, Neon-only glow)
+- src/renderer/src/App.tsx: shouldShowAmbient (ambientEnabled && running/awaiting) drives visibility effect + a push effect keyed on engine.elapsedFrac/paused/state/theme that skips while paused; hides on stop/complete; honors persisted ambientEnabled at session start
+
+Key learnings:
+- This is a FRESH worktree with NO node_modules — must run `npm install` (140 pkgs, ~13s) before typecheck/build work; package-lock is committed and install did not modify it. Worktree path is now goal-0a33a3aa-c6c4-44ca-8860-5fd765b92f3f (the goal prompt's old goal-308c74... path is stale — always use cwd).
+- Steps 9 AND 10 done together (window is inert without the live push). typecheck+build pass (41 modules, up from 40) and a real `npm run dev` launch boots with zero errors in the log. The ambient window is only created on ambient:setVisible(true), i.e. when a session starts with ambientEnabled — a headless boot check can't exercise that path, so step 12's full config->timer->takeover->ambient flow still needs a human-visible launch to confirm the strip actually renders/click-throughs.
+- Ambient window uses focusable:false + showInactive() so revealing it never steals focus from the main timer window; transparent:true + backgroundColor:'#00000000' + body-ambient making document transparent so only the bar paints. Positioned with screen.getPrimaryDisplay().bounds (not workArea) to sit at the very top edge full-width.
+- Push cadence: App.tsx effect keyed on engine.elapsedFrac (changes ~1x/sec since remaining uses Math.ceil) — no separate loop. Pause is frozen by early-returning when engine.paused (no publish). Main caches lastAmbientTick and re-sends it after did-finish-load + exposes ambient:get for a pull-seed, dodging the load race like the takeover.
+- Launch-cleanup that worked: `npm run dev > /tmp/pompom-dev.log 2>&1 &` via Bash run_in_background (wrapper exits 0 immediately; real output in the redirect log). Find procs with PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-0a33a3aa', then `taskkill /F /T /PID <electron-vite node.exe pid>` (was 34532) to kill just that tree. Never blanket-kill electron.exe.
+- Remaining work: step 11 (polish vs the three mock HTML files at D:/Repo/Tools/PomPom/mock/*.html — easing cubic-bezier(.22,.61,.36,1), ring pulse/grow-in, accent transitions, Neon-only glow) and step 12 (README + PLAN.md 'Current status' update + final sanity launch).

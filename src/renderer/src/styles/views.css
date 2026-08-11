@@ -738,3 +738,38 @@ body.body-fullbleed #root {
   margin-top: 16px;
   height: 16px;
 }
+
+/* ================= AMBIENT METER BAR ====================================== */
+/* The ambient bar renders in its own frameless, transparent, click-through
+   BrowserWindow pinned to the top of the primary display. The `body-ambient`
+   class (added by main.tsx for the `#/ambient` route) makes the whole document
+   transparent so only the bar itself paints — the OS shows the desktop/apps
+   underneath. Geometry (full width, ~5px tall) is set by the main process on the
+   window, so here the bar just fills the viewport. */
+body.body-ambient {
+  background: transparent;
+}
+body.body-ambient #root {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+.ambient-bar {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+.ambient-bar .fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 55%, transparent),
+    var(--accent)
+  );
+  box-shadow: 0 0 12px 0 var(--accent-glow);
+  transition:
+    width 1s linear,
+    background 0.5s var(--ease);
+}
