@@ -1,0 +1,290 @@
+/* ==========================================================================
+   PomPom view styles — ported from mock/index.html (Neon Dark spec).
+   Colors/fonts/radii all come from the active theme's CSS variables
+   (themes.css); this file only owns layout + component structure so all three
+   themes restyle automatically. Timer/takeover/ambient styles are added in
+   their respective plan steps.
+   ========================================================================== */
+
+/* ---------- App window frame (the themed card that fills the window) ------- */
+.window {
+  position: relative;
+  width: 460px;
+  max-width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow:
+    0 40px 120px -30px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  overflow: hidden;
+  transition: box-shadow 0.5s var(--ease);
+}
+.window.state-work,
+.window.state-rest {
+  box-shadow:
+    0 40px 120px -30px rgba(0, 0, 0, 0.75),
+    0 0 60px -30px var(--accent-glow);
+}
+
+/* title bar (brand strip; the OS provides the real window chrome) */
+.titlebar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 8px;
+  background: linear-gradient(var(--surface), var(--bg-2));
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+.titlebar .app-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.brand-mark {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 40%, #fff));
+  box-shadow: 0 0 10px -1px var(--accent-glow);
+  transition:
+    background 0.5s var(--ease),
+    box-shadow 0.5s var(--ease);
+}
+
+/* ---------- generic view container ---------------------------------------- */
+.view {
+  display: block;
+  padding: 26px 26px 24px;
+  animation: viewIn 0.4s var(--ease);
+}
+@keyframes viewIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.view-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+  margin-bottom: 18px;
+  font-weight: 600;
+}
+
+/* ================= CONFIG VIEW ============================================= */
+.field {
+  margin-bottom: 20px;
+}
+.field > label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 9px;
+  font-weight: 500;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.stepper button {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+  line-height: 1;
+  font-family: inherit;
+}
+.stepper button:hover {
+  background: var(--surface-2);
+}
+.stepper button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.stepper .val {
+  min-width: 46px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.duration-row {
+  display: flex;
+  gap: 12px;
+}
+.duration-row .field {
+  flex: 1;
+  margin-bottom: 0;
+}
+.num-input {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  height: 42px;
+}
+.num-input input {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+  width: 100%;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+.num-input .unit {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+/* task label list */
+.steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  animation: viewIn 0.3s var(--ease);
+}
+.step-index {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--accent);
+  transition:
+    background 0.5s var(--ease),
+    color 0.5s var(--ease);
+}
+.step-row input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 14.5px;
+  outline: none;
+  padding: 4px 0;
+  font-family: inherit;
+}
+.step-row input::placeholder {
+  color: var(--text-faint);
+}
+.step-row .work-min {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* templates */
+.template-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+  white-space: nowrap;
+  font-family: inherit;
+}
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.chip.add {
+  border-style: dashed;
+  color: var(--text-faint);
+}
+
+/* buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 0 22px;
+  height: 48px;
+  transition: all 0.18s var(--ease);
+  font-family: inherit;
+}
+.btn-primary {
+  width: 100%;
+  margin-top: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 8px 24px -8px var(--accent-glow);
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px -8px var(--accent-glow);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+.btn-ghost {
+  background: var(--surface);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  color: var(--text);
+  border-color: var(--text-faint);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 10px;
+  line-height: 1.5;
+}
