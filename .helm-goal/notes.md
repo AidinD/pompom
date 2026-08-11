@@ -12,54 +12,21 @@ DECISIONS.md / PLAN.md (Fas 3 Point 11) in the Helm repo for why.
 This worktree is at
 `D:/Repo/Tools/PomPom-worktrees/goal-308c74
 
-[... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
+## Preserved key learnings (from truncated earlier iterations)
 
-y.
-2. Since the worktree lacks the mock + updated PLAN/DECISIONS, decide whether to
-   ALSO copy the mock/ dir + updated docs into this worktree (goal says "do not
-   touch the mock/ directory's HTML files" — that's about editing, not about
-   whether they exist here). Recommend: create the app scaffold in this worktree;
-   read mocks from the main repo path. The updated PLAN.md we must edit is the
-   worktree's copy (older) — bring its "Current status"/theme line up to date.
-3. Grace period configurable "later" — 5s hard default is fine for v1.
-4. electron-vite multi-window: entry per window (or single renderer with hash
-   routes and separate BrowserWindow loading `#takeover` / `#ambient`). Hash/
-   query-routed single renderer bundle is the least-setup approach.
-
-
-## Iteration 1 — success
-
-Summary: Research PomPom build: capture mock spec, theme palettes, and toolchain into .helm-goal/notes.md
-
-Key changes:
-- Appended detailed RESEARCH FINDINGS to .helm-goal/notes.md covering all four surfaces, the shared state/timeline model, timer engine requirements, and the takeover grace/confirm contract extracted from mock/index.html
-- Documented all three theme CSS-variable palettes (Neon Dark, Warm Paper Dark, Nature) verbatim for direct porting
-- Flagged the critical location issue: mock/ and updated PLAN/DECISIONS exist only in the sibling main repo D:/Repo/Tools/PomPom, not in this worktree
-- Recorded recommended stack (electron-vite+React+TS, 3 BrowserWindows, userData JSON persistence) and open questions for the plan phase
-
-Key learnings:
 - Mocks are NOT in this worktree/branch — read them from D:/Repo/Tools/PomPom/mock/index.html, variant-b-paper.html, variant-d-nature.html (uncommitted in the main repo, readable on disk). compare.html is just an index page.
 - The worktree's PLAN.md/DECISIONS.md are the OLD pre-mock versions; the main repo has newer fuller copies. The PLAN.md we must update is the worktree's older copy.
 - node v24.11.1 / npm 11.6.2 available; Windows + Git Bash. Sanity check requires `npm run dev` to launch Electron without crashing, then stop it.
 - Timeline rule: work,rest,...,work with NO trailing rest; labels attach to work steps only; count clamped 1-8. Takeover must NOT auto-advance after 5s grace — requires explicit Confirm click.
 - Real app must derive remaining time from Date.now() deltas (not decrement counters). Mock's fast/demo-speed, .mocknav, .speed-toggle, .back-link are mock-only scaffolding — do not port.
 - Only 3 themes ship (Slate Mono dropped, Warm Paper is dark). Neon uses --accent-glow; Paper/Nature have no glow and use --accent-ink for on-accent text — parameterize on-accent text and glow as CSS vars across all themes.
-
-## Iteration 2 — success
-
-Summary: Write concrete 12-step PomPom implementation plan to .helm-goal/plan.md for the implement phase
-
-Key changes:
-- Created .helm-goal/plan.md with locked architecture decisions (electron-vite+React+TS, 3 BrowserWindows, main-renderer timer authority, hash routing, userData JSON persistence, GRACE_SECS=5)
-- Broke the goal into 12 small sequential implement steps: scaffold, theme CSS vars, config view, templates persistence, wall-clock timer engine, timer view, complete view, takeover window, ambient bar window, IPC fan-out, polish, docs+sanity launch
-- Included the shared timeline/cfg model and a behavior verification checklist
-
-Key learnings:
 - plan.md now exists at .helm-goal/plan.md; implement iterations should follow it one step at a time and cross-check .helm-goal/notes.md for exact palettes/copy/geometry
 - Worktree has only OLD PLAN.md/DECISIONS.md/README.md at root plus .gitignore (node_modules/dist/out ignored); scaffold must not clobber these files
 - Mocks live only in sibling D:/Repo/Tools/PomPom/mock/*.html — read, never edit; the PLAN.md to update for 'Current status' is this worktree's older copy (currently says 'Pre-mock.')
 
-## Iteration 3 — success
+
+[... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
+
 
 Summary: Scaffold electron-vite + React + TypeScript app (plan step 1): package.json dev/build scripts, main/preload/renderer, verified install/typecheck/build/launch
 
@@ -184,3 +151,25 @@ Key learnings:
 - The 1s-linear stroke-dashoffset transition on .ring-prog is correct even with 200ms engine ticks: remaining uses Math.ceil so frac only changes once per whole second, giving a smooth continuous sweep with no lag. Same for .seg-fill.
 - Ambient toggle (step 6 UI) persists ambientEnabled to the store and reflects it, but does NOT yet create the always-on-top ambient BrowserWindow — that is plan step 9. App now loads ambientEnabled from the store on mount.
 - Launch-cleanup that worked this time: launch `npm run dev > /tmp/pompom-dev.log 2>&1` via Bash run_in_background (wrapper 'completes' immediately; real output goes to the redirect log — read that). Find this worktree's procs with PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-308c740c-e131', then `taskkill /F /T /PID <the electron-vite node.exe pid>` to kill just that tree. The background task shows exit-1 afterwards — that's just the kill, not a real failure. Never blanket-taskkill electron.exe.
+
+## Iteration 9 — success
+
+Summary: Implement takeover window (plan step 8): separate fullscreen alwaysOnTop BrowserWindow with grace countdown + required Confirm, wired via IPC to the timer engine
+
+Key changes:
+- Added src/shared/ipc.ts: TakeoverStep payload type + GRACE_SECS=5 constant shared across main/preload/renderer
+- src/main/index.ts: getTakeoverWindow() (fullscreen+alwaysOnTop+skipTaskbar+frameless, screen-saver z-order), loadRoute() hash helper, registerTakeoverIpc() for takeover:show/hide/confirm/get, confirm relays takeover:confirmed to main window and closes takeover; main-window close/stop/complete tear it down
+- src/preload/index.ts: exposed window.pompom.takeover.show/hide/confirm/get/onStep/onConfirmed over ipcRenderer
+- src/renderer/src/main.tsx: hash routing so #/takeover renders TakeoverView (with body-fullbleed) else App
+- src/renderer/src/views/TakeoverView.tsx (new): dumb IPC-driven view — eyebrow/headline/up-next per next step type, 150x150 grace ring r=68 counting 5->0, Confirm button gated with .ready at zero and 'timer stays paused' hint; NEVER auto-advances
+- src/renderer/src/App.tsx: wired useTimerEngine callbacks (onStepPending->takeover.show, onComplete/onStop->takeover.hide) and onConfirmed->engine.confirm(); themeRef keeps takeover theme in sync
+- src/renderer/src/styles/views.css: ported takeover/grace-ring/confirm-button styles (uses --accent-ink) + body.body-fullbleed #root padding reset
+
+Key learnings:
+- Plan step 8 DONE + verified: typecheck + build pass (40 modules) and a real npm run dev launch boots without crashing; dev tree stopped by PID. Next is plan step 9: the ambient bar BrowserWindow (frameless/transparent/click-through), then step 10 (IPC state fan-out each tick to takeover+ambient).
+- Multi-window routing: ONE renderer bundle; window role chosen by URL hash. main/index.ts loadRoute(win,'takeover'|'ambient'|'') loads ELECTRON_RENDERER_URL+#/route in dev or loadFile(...,{hash}) in prod. main.tsx reads window.location.hash to pick TakeoverView vs App. Reuse loadRoute for the ambient window in step 9.
+- Takeover flow is pull+push to dodge a load race: main stores pendingTakeoverStep; takeover renderer seeds via window.pompom.takeover.get() on mount AND subscribes onStep; main also pushes takeover:step after did-finish-load then shows the window. Confirm is the ONLY advance path: takeover.confirm() -> main closes takeover + sends takeover:confirmed -> App onConfirmed -> engine.confirm().
+- App passes a FRESH callbacks object to useTimerEngine each render (hook does cbRef.current=callbacks every render) so onStepPending closes over the latest theme via themeRef; the onConfirmed subscription uses a confirmRef (engine.confirm identity changes every 200ms tick) and subscribes once on mount so it never resubscribes.
+- Takeover window is fullscreen+alwaysOnTop+skipTaskbar+frame:false with setAlwaysOnTop(true,'screen-saver'); it covers the main window (which stays behind rendering the frozen just-finished step). There is intentionally NO Stop control inside the takeover (matches mock) — only Confirm advances. Grace countdown derives from Date.now() delta (whole-second ceil) with the CSS 1s-linear ring transition for smoothness.
+- preload ipcRenderer.on listeners are typed (_e: unknown, ...) which passes strictFunctionTypes (unknown is a supertype of IpcRendererEvent). onStep/onConfirmed return an unsubscribe that calls removeListener — call it in the effect cleanup (StrictMode double-mounts, so net one listener).
+- CSS: takeover uses body.body-fullbleed #root { padding:0 } (class added by main.tsx on the takeover route) to defeat global.css's #root centering padding so the overlay is edge-to-edge. Confirm button uses var(--accent-ink) not the mock's hardcoded #0d0f13 so it works across all 3 themes; grace-prog glow uses --accent-glow (transparent on paper/nature).

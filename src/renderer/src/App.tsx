@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_THEME, THEMES, applyTheme, type ThemeId } from './themes/themes'
 import { SEED_TEMPLATES, DEFAULT_CFG, type Cfg, type Template } from '@shared/model'
 import type { StoreData } from '@shared/store'
+import { GRACE_SECS } from '@shared/ipc'
 import ConfigView from './views/ConfigView'
 import TimerView from './views/TimerView'
 import CompleteView from './views/CompleteView'
@@ -28,7 +29,39 @@ export default function App(): JSX.Element {
   const [templates, setTemplates] = useState<Template[]>(SEED_TEMPLATES)
   const [ambientEnabled, setAmbientEnabled] = useState(false)
 
-  const engine = useTimerEngine()
+  // Latest theme, reachable from the engine callbacks below without making the
+  // callbacks (or a re-subscribe) depend on it.
+  const themeRef = useRef<ThemeId>(DEFAULT_THEME)
+
+  // The timer engine drives the takeover window: when a step finishes it asks
+  // the main process to show the fullscreen takeover for the next step; the
+  // takeover's Confirm click comes back via `takeover:confirmed` (below) and
+  // calls engine.confirm(). On stop/complete the takeover is force-hidden.
+  const engine = useTimerEngine({
+    onStepPending: (nextIdx, timeline) => {
+      const next = timeline[nextIdx]
+      if (!next) return
+      window.pompom.takeover.show({
+        type: next.type,
+        label: next.label,
+        mins: next.mins,
+        theme: themeRef.current,
+        graceSecs: GRACE_SECS
+      })
+    },
+    onComplete: () => window.pompom.takeover.hide(),
+    onStop: () => window.pompom.takeover.hide()
+  })
+
+  // Keep a stable handle to the engine's confirm so the subscription below never
+  // needs to re-run (engine action identities change every tick).
+  const confirmRef = useRef(engine.confirm)
+  confirmRef.current = engine.confirm
+
+  // The takeover window's Confirm click advances the timer into the pending step.
+  useEffect(() => {
+    return window.pompom.takeover.onConfirmed(() => confirmRef.current())
+  }, [])
 
   // Load persisted state from disk once on mount.
   useEffect(() => {
@@ -54,6 +87,7 @@ export default function App(): JSX.Element {
   // Apply the active theme + state to the document root so the theme's CSS
   // variables (incl. the state-scoped `--accent` overrides) cascade app-wide.
   useEffect(() => {
+    themeRef.current = theme
     applyTheme(document.documentElement, theme, state)
   }, [theme, state])
 
