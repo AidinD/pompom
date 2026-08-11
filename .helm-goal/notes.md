@@ -14,55 +14,7 @@ This worktree is at
 
 [... earlier notes truncated - context fill crossed the 40% budget, older narrative dropped to keep future iterations' prompts small; durable key learnings preserved above ...]
 
-ml) — DEFAULT. Font: Inter/sans. Uses glow.
-```
---bg:#0d0f13; --bg-2:#14171d; --surface:#191d25; --surface-2:#20252f;
---border:#2a303b; --text:#eef1f6; --text-dim:#9aa3b2; --text-faint:#5c6472;
-work:  --accent:#3ddc97; --accent-soft:rgba(61,220,151,.14); --accent-glow:rgba(61,220,151,.40)
-rest:  --accent:#ffab4d; --accent-soft:rgba(255,171,77,.14); --accent-glow:rgba(255,171,77,.40)
---radius:16px --radius-sm:10px  ease:cubic-bezier(.22,.61,.36,1)
-button text on accent: #0d0f13
-```
-
-### Warm Paper Dark (variant-b-paper.html). Font: serif (Iowan/Georgia/Charter).
-**No glow** (no --accent-glow); uses `--accent-ink` for on-accent text.
-```
---bg:#1b1712; --bg-2:#221c15; --surface:#262019; --surface-2:#2e271d;
---border:#3d3324; --text:#efe6d4; --text-dim:#b7a98d; --text-faint:#7c715c;
-work: --accent:#d99567; --accent-soft:rgba(217,149,103,.14)
-rest: --accent:#9db179; --accent-soft:rgba(157,177,121,.14)
---accent-ink:#241b11  --radius:14px --radius-sm:9px
-```
-
-### Nature (variant-d-nature.html). Font: Inter/sans. No glow. --accent-ink.
-```
---bg:#11150e; --bg-2:#161c11; --surface:#1a2114; --surface-2:#212a19;
---border:#2c3722; --text:#e7ecd9; --text-dim:#9fac89; --text-faint:#616f4c;
-work: --accent:#86a563; --accent-soft:rgba(134,165,99,.14)
-rest: --accent:#c6883f; --accent-soft:rgba(198,136,63,.14)
---accent-ink:#12160c  --radius:18px --radius-sm:12px
-```
-Design note (DECISIONS): "Slate Mono" variant was dropped; Warm Paper was
-reworked from light to dark. Only these 3 themes ship in v1. Add a theme picker
-(row of swatch buttons) in config; persist the choice.
-On-accent text color differs per theme (`#0d0f13` neon vs `--accent-ink` others)
-— parameterize it as a CSS var (e.g. `--accent-ink`) across all themes so
-buttons read correctly. Glow effects should degrade gracefully when a theme has
-no `--accent-glow` (define it as transparent/none for paper & nature).
-
-## DELIVERABLES CHECKLIST (from goal)
-- Runnable app; `npm install && npm run dev` documented in README.md.
-- package.json scripts: dev + build.
-- Update PLAN.md "Current status" to say the Electron app now exists + what's
-  left (packaging/dist, real icon, deferred features).
-- Do NOT touch mock/ HTML. No `git commit` (orchestrator commits).
-- **Sanity check: launch the app once (background/short-lived) to confirm
-  `npm run dev` starts without crashing, then STOP it before finishing.**
-
-## OPEN QUESTIONS / decisions to make in PLAN phase
-1. Timer authority: main process vs main renderer? (Recommend main-window
-   renderer owns the engine for v1 simplicity, pushes state to takeover+ambient
-   windows via a small IPC bridge in preload.) Revisit if it gets messy.
+y.
 2. Since the worktree lacks the mock + updated PLAN/DECISIONS, decide whether to
    ALSO copy the mock/ dir + updated docs into this worktree (goal says "do not
    touch the mock/ directory's HTML files" — that's about editing, not about
@@ -212,3 +164,23 @@ Key learnings:
 - Phase model: 'idle'|'running'|'awaiting'|'complete'. skip() routes through stepFinished() -> 'awaiting' (goes to takeover for next step), matching the mock; it does NOT jump straight into the next step. confirm() only valid in 'awaiting'. stop() resets to idle and fires onStop.
 - Pure renderer/TS change this iteration; did NOT run npm run dev (reserved for step 12). When launching dev later, use Bash run_in_background and kill by the electron-vite cmd.exe PID tree (match commandline 'goal-308c740c') — never blanket taskkill electron.exe (kills the user's other Electron apps).
 - App.tsx currently applies a fixed 'work' state to document root; step 6 must toggle state-work/state-rest on #window from the engine's current step type for the accent hue shift, and pulse the ring by toggling .pulsing on #window with a forced reflow (void el.offsetWidth) on step change (onEnterStep is the natural hook).
+
+## Iteration 8 — success
+
+Summary: Implement timer + complete views (plan steps 6-7): wire useTimerEngine into App with phase routing, countdown ring, sequence strip, controls, and work/rest accent state
+
+Key changes:
+- Added src/renderer/src/views/TimerView.tsx: step badge, task label, 240x240 SVG countdown ring (r=110, dashoffset=RING_C*(1-frac)) with a one-shot pulse on step entry (via React key on the prog circle), sequence strip with elapsed-fill on the current segment, next-up hint, Pause/Resume + Skip + Stop controls, and the ambient-meter toggle row
+- Added src/renderer/src/views/CompleteView.tsx: check icon, 'Session complete', and '{count} pomodoros · {h}h {m}m focused' summary (totalMin=count*work) with a 'New session' button that stops the engine back to config
+- Rewrote App.tsx to host useTimerEngine, route by phase (idle->Config, running/awaiting->Timer, complete->Complete), derive work/rest state from the current step and apply it to BOTH document root (applyTheme) and the #window card class, persist ambientEnabled on toggle, and start the engine on session start
+- Ported the mock's timer + complete CSS (step-badge/dotPulse, ring-track/ring-prog/ringPulse, sequence/seg/seg-fill, next-up, controls/icon-btn, toggle-row/switch, complete-check) into src/renderer/src/styles/views.css using theme CSS vars
+- Verified: typecheck + build pass (38 modules) and a real npm run dev launch boots the app cleanly with no renderer errors; dev tree stopped by PID afterward
+
+Key learnings:
+- Plan steps 6 AND 7 are DONE (timer view + complete view). Complete view was folded in because leaving the engine's 'complete' phase unrouted would render a blank window — they are the same running-session surface. Next is plan step 8: the takeover BrowserWindow (fullscreen+alwaysOnTop) for the 'awaiting' phase.
+- IMPORTANT gap for step 8: during phase 'awaiting' the TimerView currently renders the just-finished step frozen at 00:00 with NO confirm/advance path except the Stop button. The takeover window (step 8) must supply the grace countdown + Confirm-&-continue that calls engine.confirm() to enter the pending step. Wire it off the engine's onStepPending callback (or watch phase==='awaiting' + pendingIdx in App).
+- Pulse-on-step-start is done the React-idiomatic way: the .ring-prog circle has className 'ring-prog pulse' and key={curIdx}, so entering a new step remounts it and replays the one-shot ringPulse animation. Do NOT reintroduce the mock's imperative .window.pulsing + void offsetWidth reflow (it fights React re-renders every 200ms tick).
+- State (work/rest) is applied in TWO places by App: applyTheme(document.documentElement, theme, state) for the theme-scoped --accent hue overrides, AND className `window state-${state}` on #window for the .window.state-work/-rest box-shadow glow. state derives from engine.step?.type (defaults 'work' when idle so config/complete show primary accent).
+- The 1s-linear stroke-dashoffset transition on .ring-prog is correct even with 200ms engine ticks: remaining uses Math.ceil so frac only changes once per whole second, giving a smooth continuous sweep with no lag. Same for .seg-fill.
+- Ambient toggle (step 6 UI) persists ambientEnabled to the store and reflects it, but does NOT yet create the always-on-top ambient BrowserWindow — that is plan step 9. App now loads ambientEnabled from the store on mount.
+- Launch-cleanup that worked this time: launch `npm run dev > /tmp/pompom-dev.log 2>&1` via Bash run_in_background (wrapper 'completes' immediately; real output goes to the redirect log — read that). Find this worktree's procs with PowerShell Get-CimInstance Win32_Process | Where CommandLine -match 'goal-308c740c-e131', then `taskkill /F /T /PID <the electron-vite node.exe pid>` to kill just that tree. The background task shows exit-1 afterwards — that's just the kill, not a real failure. Never blanket-taskkill electron.exe.
