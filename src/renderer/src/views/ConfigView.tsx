@@ -3,30 +3,53 @@ import {
   DEFAULT_CFG,
   clampCount,
   growLabels,
-  type Cfg
+  type Cfg,
+  type Template
 } from '@shared/model'
+import { THEMES, type ThemeId } from '../themes/themes'
 
 interface ConfigViewProps {
+  /** Initial config for the form (last-used config or a loaded template). */
+  initialCfg?: Cfg
+  /** Templates to render as chips. */
+  templates: Template[]
+  /** Currently selected theme id. */
+  theme: ThemeId
   /** Called with the finalized config when the user starts a session. */
   onStart: (cfg: Cfg) => void
+  /** Called when a template chip is clicked (parent loads it into the form). */
+  onLoadTemplate: (id: string) => void
+  /** Called with the current form config to save it as a new template. */
+  onSaveTemplate: (cfg: Cfg) => void
+  /** Called when a theme swatch is picked. */
+  onThemeChange: (id: ThemeId) => void
 }
 
 /**
  * Config view (`#/`) — "New session".
  *
  * Ports the mock's config surface: pomodoro stepper (clamped 1..8, grows the
- * labels array), work/rest duration inputs, and one editable task-label row per
- * pomodoro. Templates persistence + the theme picker land in the next plan step;
- * this step keeps state local to the view.
+ * labels array), work/rest duration inputs, one editable task-label row per
+ * pomodoro, reusable template chips, and a theme-picker swatch row. cfg is kept
+ * local to the view; loading a template remounts this component (via a `key` in
+ * the parent) so the initialCfg re-seeds the local state cleanly.
  *
  * Duration inputs are kept as raw strings so the fields can be cleared/edited
  * smoothly; they resolve to numbers (with the mock's 25/5 fallbacks) on start.
  */
-export default function ConfigView({ onStart }: ConfigViewProps): JSX.Element {
-  const [count, setCount] = useState(DEFAULT_CFG.count)
-  const [work, setWork] = useState(String(DEFAULT_CFG.work))
-  const [rest, setRest] = useState(String(DEFAULT_CFG.rest))
-  const [labels, setLabels] = useState<string[]>(DEFAULT_CFG.labels)
+export default function ConfigView({
+  initialCfg = DEFAULT_CFG,
+  templates,
+  theme,
+  onStart,
+  onLoadTemplate,
+  onSaveTemplate,
+  onThemeChange
+}: ConfigViewProps): JSX.Element {
+  const [count, setCount] = useState(initialCfg.count)
+  const [work, setWork] = useState(String(initialCfg.work))
+  const [rest, setRest] = useState(String(initialCfg.rest))
+  const [labels, setLabels] = useState<string[]>(growLabels(initialCfg.labels, initialCfg.count))
 
   function changeCount(delta: number): void {
     const next = clampCount(count + delta)
@@ -43,14 +66,14 @@ export default function ConfigView({ onStart }: ConfigViewProps): JSX.Element {
     })
   }
 
-  function handleStart(): void {
-    const cfg: Cfg = {
+  /** Resolve the current form fields into a concrete Cfg (mock 25/5 fallbacks). */
+  function currentCfg(): Cfg {
+    return {
       count,
       work: parseInt(work, 10) || DEFAULT_CFG.work,
       rest: parseInt(rest, 10) || DEFAULT_CFG.rest,
       labels: growLabels(labels, count)
     }
-    onStart(cfg)
   }
 
   const workHint = work === '' ? '' : `${work}m`
@@ -118,7 +141,44 @@ export default function ConfigView({ onStart }: ConfigViewProps): JSX.Element {
         </div>
       </div>
 
-      <button className="btn btn-primary" onClick={handleStart}>
+      <div className="field">
+        <label>Templates</label>
+        <div className="template-bar">
+          {templates.map((tpl) => (
+            <button key={tpl.id} className="chip" onClick={() => onLoadTemplate(tpl.id)}>
+              {tpl.name}
+            </button>
+          ))}
+          <button className="chip add" onClick={() => onSaveTemplate(currentCfg())}>
+            + Save current
+          </button>
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Theme</label>
+        <div className="theme-picker">
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              className={`swatch${t.id === theme ? ' selected' : ''}`}
+              onClick={() => onThemeChange(t.id)}
+              title={t.name}
+              aria-label={`Theme: ${t.name}`}
+              aria-pressed={t.id === theme}
+            >
+              <span
+                className="swatch-fill"
+                style={{
+                  background: `linear-gradient(135deg, ${t.swatchWork} 0 50%, ${t.swatchRest} 50% 100%)`
+                }}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button className="btn btn-primary" onClick={() => onStart(currentCfg())}>
         Start session
       </button>
       <p className="hint">

@@ -1,7 +1,15 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import { readStore, writeStore } from './store'
+import type { StoreData } from '../shared/store'
 
 let mainWindow: BrowserWindow | null = null
+
+/** Persistence IPC bridge: renderer reads/writes the durable JSON store. */
+function registerStoreIpc(): void {
+  ipcMain.handle('store:get', () => readStore())
+  ipcMain.handle('store:set', (_event, partial: Partial<StoreData>) => writeStore(partial))
+}
 
 function createMainWindow(): void {
   mainWindow = new BrowserWindow({
@@ -41,6 +49,7 @@ function createMainWindow(): void {
 }
 
 app.whenReady().then(() => {
+  registerStoreIpc()
   createMainWindow()
 
   app.on('activate', () => {
