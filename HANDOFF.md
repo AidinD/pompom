@@ -1,32 +1,38 @@
 # Handoff - latest session state
 
 _Overwritten on each handoff (latest-only); prior handoffs are in git history._
-_Saved 2026-08-12 09:59. For durable rationale see DECISIONS.md; for the roadmap, PLAN.md._
+_Saved 2026-08-12 14:12. For durable rationale see DECISIONS.md; for the roadmap, PLAN.md._
 
-# PomPom — Session Handoff
+# Handoff: PomPom — worked two Jot tasks + three ad-hoc feature/fix requests
 
-## Current state
+## Repo
+`D:\Repo\Tools\PomPom` — Electron + React Windows Pomodoro app. Jot board tracking at `<your-jot-data-dir>\todos.json` (category "PomPom", id `<category-id>`), driven via the `jot-task-tracking` skill and its `jot-edit.mjs` helper.
 
-Repo: `D:\Repo\Tools\PomPom` (Windows Electron + React Pomodoro app). Working tree is clean, all work is committed and pushed to `origin/master` (GitHub: `AidinD/pompom`). Latest commit: `b59d86e`. `package.json` version: `0.1.6`.
+## What happened this session (chronological, all pushed to `origin/master`)
 
-This session ran as PomPom's coordinator ("second mate"). No autopilot/crew dispatches were running or needed — all work this session was done directly (small, well-scoped feature/bugfix work, not a candidate for delegation).
+1. **Ambient meter stopped working** (Jot task `a762b599`, now `review`) — commit `907b41e`. Root cause: a *second* Chromium throttling path (Windows native occlusion tracking + `IntensiveWakeUpThrottling`) independent of the per-window `backgroundThrottling: false` fix from an earlier session (commit `f445274`, already in review before this session started). Fixed by `app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling')` in `src/main/index.ts`.
 
-**Full history of what changed and why**: see `DECISIONS.md` and `PLAN.md` in the repo (both updated throughout this session) and the commit log (`git log --oneline`) — each commit message is self-contained. Don't re-derive that here; read those instead.
+2. **Long-break feature** (Jot task `7fe2291a`, now `review`) — went through two design iterations before landing:
+   - First attempt (`eab93c4`): `longRest` + `longRestEvery` (classic "every 4th pomodoro"), rejected by user — didn't fit PomPom's fixed-session model.
+   - Revised (`bd44c03`): dropped `longRestEvery`, made the session's *last existing rest* long — this was **still buggy** per user screenshot (long rest landed before the final pomodoro, then session ended with no break at all).
+   - Final fix (`ff68767`): long rest is now a **trailing step appended after the last pomodoro** (`timeline = work,rest,work,...,work,long-rest`). This is the current correct behavior. `Cfg.longRest` field, UI in `ConfigView.tsx` (hidden when `count <= 1`), backward-compat merge via `coerceCfg()` in `App.tsx` for old persisted configs.
 
-**Installed app is stale**: `C:\Users\<you>\AppData\Local\Programs\PomPom` has version `0.1.2` installed and was running during this session (verified via `app.asar`'s `package.json`). It predates the template delete/rename features (0.1.3–0.1.4), the titlebar version label (0.1.5), and the window-height fix (0.1.6). **The user has not yet said whether to close the running app and reinstall, or do it themselves** — this was the last open question when the session ended. A fresh installer already exists at `D:\Repo\Tools\pompom\dist\PomPom Setup 0.1.6.exe` (built, not yet installed).
+3. **Mini-widget click-to-restore** (`f6492b9`) — clicking anywhere on the pinned mini widget now reopens the main window (new `mini:restore` IPC message), not just the Pause/Stop buttons. Buttons `stopPropagation` to keep their own actions distinct.
 
-## Key decisions and why
+4. **Zen theme** (`e3dc9ec`) — added as a 4th theme (`neon`/`paper`/`nature`/`zen`) following the existing "glow-free" pattern (like paper/nature): near-monochrome stone palette, sage/sand accents, `--accent-glow: transparent`, pill-shaped confirm button, slowest/softest breathing animations for the badge dot and ring pulse.
 
-- **Versioning convention established and now written down**: bump the patch version on every commit, reset on minor/major. This wasn't documented anywhere (checked this repo's docs and the user's global Claude config) — it's now in `DECISIONS.md` (2026-08-12 entry) AND in the user's **global** canonical rules file `<your-claude-home>\CLAUDE.md` (under "Git & Version Control"), since it's a standing convention across all his projects, not just this one. Also saved as a memory file (`feedback_versioning.md` in this project's memory dir). **Apply this going forward**: bump the patch in `package.json` as part of every commit that touches tracked files.
-- **`dist/` is now auto-cleaned before every packaged build**: `npm run dist` runs a `predist` script (added to `package.json`) that wipes `dist/` first, because electron-builder never removed its own previous output and stale installers/blockmaps were accumulating. No action needed — this is automatic now.
-- **Icon source image had a baked-in opaque checkerboard**, not real alpha transparency — a plain alpha-threshold crop did nothing. The working approach (documented in `DECISIONS.md`) was luminance-based: detect the dark icon body, turn near-gray light pixels transparent. Relevant if the icon ever needs regenerating from a new source image.
-- **Root cause of the "ambient overlay stalls after a while" bug**: Electron's `backgroundThrottling` (default on) freezes a backgrounded renderer's timers — and the main window (not a dedicated aux window) is the timer authority. Fixed by disabling `backgroundThrottling` on the main window and the ambient window. Relevant precedent if the mini-widget or any other window shows similar stalling later — check throttling first.
-- **New "pinned mini view" feature** auto-minimizes the main window when a session is running (if the user has the toggle on) and shows a small always-on-top corner widget instead. Design call made without asking: it minimizes immediately when a session starts if the toggle was already on from a previous session, rather than waiting for some later trigger. **The user has not yet confirmed or objected to this default** — worth a light check if it comes up.
-- **"Större default skärm" (window-too-small) task was interpreted** as "content clips instead of fitting/scrolling," not "start maximized." Window height is now derived from the screen's actual work area (capped at 980px) rather than a fixed guess — 860px still wasn't enough per user feedback, so this was tuned twice.
+Versioning convention (per user's standing rule, see memory `feedback_versioning.md`): bump `package.json` patch version on every commit. Currently at **0.1.12**. Each feature was typecheck'd + built before commit; the ambient-throttling fix and long-break fixes were also verified via a brief `npm run dev` launch. The final state (0.1.12) was packaged via `npm run dist` → `dist\PomPom Setup 0.1.12.exe`.
 
-## Concrete next steps
+## Key files touched
+- `src/main/index.ts` — occlusion/throttling fix, `mini:restore` handler
+- `src/shared/model.ts` — `Cfg.longRest`, `buildTimeline` trailing long-rest logic
+- `src/renderer/src/views/ConfigView.tsx`, `TimerView.tsx`, `MiniView.tsx`
+- `src/renderer/src/App.tsx` — `coerceCfg` backward-compat merge
+- `src/renderer/src/themes/themes.ts`, `themes.css`, `src/renderer/src/styles/views.css` — Zen theme
+- `src/preload/index.ts`, `src/shared/ipc.ts` — `mini:restore` API
 
-1. **Resolve the stale-install question**: either close the running `0.1.2` PomPom.exe processes and install `dist\PomPom Setup 0.1.6.exe`, or wait for the user to do it themselves. Don't assume — ask if picking this back up.
-2. All six original Jot backlog tasks for the PomPom category (icon, sound notification, rest-break tips, overlay stall bug, pinned mini view, window sizing) were completed and moved to **`review`** status in Jot (`<your-jot-data-dir>\todos.json`) — not `done`, since the user verifies and closes them himself. Two more small features (template delete, template rename, version label, window-height retune) were done ad hoc after the backlog was cleared and were **not** added to Jot (they came as direct chat requests, not board items) — consider whether they should be logged there too, or just left as-is since they're already fully committed.
-3. If new Jot tasks appear in the PomPom category, follow the `jot-task-tracking` skill workflow (claim → in-progress → review, never done).
-4. No known open bugs. If the user reports something behaving oddly, check first whether they're running the stale `0.1.2` install before assuming it's a code issue — that was the root cause of the last confusing report ("can't edit or delete templates").
+## Next steps / open items
+- Both Jot tasks (`a762b599`, `7fe2291a`) are sitting in `review` — the board owner (user) still needs to confirm/move them to `done`.
+- No other open PomPom items in Jot as of this session's start besides the two above (already resolved) — re-check the board for anything new before starting fresh work.
+- The ambient-throttling fix has **not been long-duration verified** (the "efter ett tag" bug by nature only reproduces after ~5-10+ min backgrounded) — worth a real-world soak test.
+- No automated tests exist in this repo; verification so far has been typecheck + build + short dev-launch only.
