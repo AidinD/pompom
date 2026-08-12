@@ -15,6 +15,10 @@ export interface Cfg {
   work: number
   rest: number
   labels: string[]
+  /** Minutes for the longer break inserted every `longRestEvery`th rest. */
+  longRest: number
+  /** Take the long break every Nth pomodoro (classic Pomodoro default: 4). */
+  longRestEvery: number
 }
 
 /** One resolved step in the running session timeline. */
@@ -52,7 +56,9 @@ export const DEFAULT_CFG: Cfg = {
   count: 4,
   work: 25,
   rest: 5,
-  labels: ['Task A', 'Task B', 'Task C', 'Task D']
+  labels: ['Task A', 'Task B', 'Task C', 'Task D'],
+  longRest: 15,
+  longRestEvery: 4
 }
 
 export function clampCount(n: number): number {
@@ -77,7 +83,9 @@ export function growLabels(labels: string[], count: number): string[] {
 /**
  * Build the running timeline: work,rest,work,rest,…,work.
  * A rest is inserted only BETWEEN pomodoros — no trailing rest after the last.
- * Task labels attach to work steps only.
+ * Every `longRestEvery`th rest (after that many completed pomodoros) uses
+ * `longRest` minutes instead of `rest`, mirroring the classic Pomodoro
+ * technique's longer break. Task labels attach to work steps only.
  */
 export function buildTimeline(cfg: Cfg): TimelineStep[] {
   const timeline: TimelineStep[] = []
@@ -89,7 +97,13 @@ export function buildTimeline(cfg: Cfg): TimelineStep[] {
       pomoIndex: i
     })
     if (i < cfg.count - 1) {
-      timeline.push({ type: 'rest', label: 'Rest', mins: cfg.rest, pomoIndex: i })
+      const isLongRest = cfg.longRestEvery > 0 && (i + 1) % cfg.longRestEvery === 0
+      timeline.push({
+        type: 'rest',
+        label: isLongRest ? 'Long rest' : 'Rest',
+        mins: isLongRest ? cfg.longRest : cfg.rest,
+        pomoIndex: i
+      })
     }
   }
   return timeline
@@ -111,11 +125,25 @@ export const SEED_TEMPLATES: Template[] = [
   {
     id: 'deep',
     name: 'Deep work · 4×50/10',
-    cfg: { count: 4, work: 50, rest: 10, labels: ['Writing', 'Writing', 'Review', 'Planning'] }
+    cfg: {
+      count: 4,
+      work: 50,
+      rest: 10,
+      labels: ['Writing', 'Writing', 'Review', 'Planning'],
+      longRest: 20,
+      longRestEvery: 4
+    }
   },
   {
     id: 'classic',
     name: 'Classic · 4×25/5',
-    cfg: { count: 4, work: 25, rest: 5, labels: ['Task A', 'Task B', 'Task C', 'Task D'] }
+    cfg: {
+      count: 4,
+      work: 25,
+      rest: 5,
+      labels: ['Task A', 'Task B', 'Task C', 'Task D'],
+      longRest: 15,
+      longRestEvery: 4
+    }
   }
 ]

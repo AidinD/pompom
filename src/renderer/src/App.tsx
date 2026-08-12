@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_THEME, THEMES, applyTheme, type ThemeId } from './themes/themes'
 import { SEED_TEMPLATES, DEFAULT_CFG, type Cfg, type Template } from '@shared/model'
+// Merge onto DEFAULT_CFG so a store file persisted before `longRest`/
+// `longRestEvery` existed still resolves to real numbers instead of undefined.
+function coerceCfg(cfg: Cfg): Cfg {
+  return { ...DEFAULT_CFG, ...cfg }
+}
 import type { StoreData } from '@shared/store'
 import { GRACE_SECS } from '@shared/ipc'
 import ConfigView from './views/ConfigView'
@@ -95,7 +100,7 @@ export default function App(): JSX.Element {
       setTheme(coerceTheme(s.theme))
       setAmbientEnabled(!!s.ambientEnabled)
       setMiniPinned(!!s.miniPinned)
-      if (s.lastConfig) setCfg(s.lastConfig)
+      if (s.lastConfig) setCfg(coerceCfg(s.lastConfig))
       // Remount ConfigView so its local state re-seeds from the loaded config.
       setCfgKey((k) => k + 1)
     })
@@ -165,7 +170,7 @@ export default function App(): JSX.Element {
     const tpl = templates.find((t) => t.id === id)
     if (!tpl) return
     // Clone so editing the form never mutates the stored template.
-    setCfg({ ...tpl.cfg, labels: tpl.cfg.labels.slice() })
+    setCfg(coerceCfg({ ...tpl.cfg, labels: tpl.cfg.labels.slice() }))
     setCfgKey((k) => k + 1)
   }
 
