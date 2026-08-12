@@ -19,10 +19,12 @@ interface ConfigViewProps {
   onStart: (cfg: Cfg) => void
   /** Called when a template chip is clicked (parent loads it into the form). */
   onLoadTemplate: (id: string) => void
-  /** Called with the current form config to save it as a new template. */
-  onSaveTemplate: (cfg: Cfg) => void
+  /** Called with the current form config + a user-chosen name to save it as a new template. */
+  onSaveTemplate: (cfg: Cfg, name: string) => void
   /** Called with a template's id when its remove ("x") button is clicked. */
   onDeleteTemplate: (id: string) => void
+  /** Called with a template's id + new name when a rename is committed. */
+  onRenameTemplate: (id: string, name: string) => void
   /** Called when a theme swatch is picked. */
   onThemeChange: (id: ThemeId) => void
 }
@@ -47,12 +49,20 @@ export default function ConfigView({
   onLoadTemplate,
   onSaveTemplate,
   onDeleteTemplate,
+  onRenameTemplate,
   onThemeChange
 }: ConfigViewProps): JSX.Element {
   const [count, setCount] = useState(initialCfg.count)
   const [work, setWork] = useState(String(initialCfg.work))
   const [rest, setRest] = useState(String(initialCfg.rest))
   const [labels, setLabels] = useState<string[]>(growLabels(initialCfg.labels, initialCfg.count))
+
+  // Inline "save as" naming: clicking "+ Save current" opens a text input
+  // (pre-filled with the old auto-generated name) instead of saving instantly.
+  const [savingName, setSavingName] = useState<string | null>(null)
+  // Inline rename: clicking a chip's pencil turns its label into a text input.
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   function changeCount(delta: number): void {
     const next = clampCount(count + delta)
@@ -77,6 +87,26 @@ export default function ConfigView({
       rest: parseInt(rest, 10) || DEFAULT_CFG.rest,
       labels: growLabels(labels, count)
     }
+  }
+
+  function defaultTemplateName(): string {
+    return `Custom · ${count}×${work || DEFAULT_CFG.work}/${rest || DEFAULT_CFG.rest}`
+  }
+
+  function commitSave(): void {
+    const name = savingName?.trim() || defaultTemplateName()
+    onSaveTemplate(currentCfg(), name)
+    setSavingName(null)
+  }
+
+  function startRename(tpl: Template): void {
+    setRenamingId(tpl.id)
+    setRenameValue(tpl.name)
+  }
+
+  function commitRename(): void {
+    if (renamingId) onRenameTemplate(renamingId, renameValue.trim() || 'Untitled')
+    setRenamingId(null)
   }
 
   const workHint = work === '' ? '' : `${work}m`
@@ -147,27 +177,81 @@ export default function ConfigView({
       <div className="field">
         <label>Templates</label>
         <div className="template-bar">
-          {templates.map((tpl) => (
-            <div className="chip-wrap" key={tpl.id}>
-              <button className="chip" onClick={() => onLoadTemplate(tpl.id)}>
-                {tpl.name}
+          {templates.map((tpl) =>
+            renamingId === tpl.id ? (
+              <input
+                key={tpl.id}
+                className="chip-rename-input"
+                value={renameValue}
+                autoFocus
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitRename()
+                  else if (e.key === 'Escape') setRenamingId(null)
+                }}
+                aria-label={`Rename template ${tpl.name}`}
+              />
+            ) : (
+              <div className="chip-wrap" key={tpl.id}>
+                <button className="chip" onClick={() => onLoadTemplate(tpl.id)}>
+                  {tpl.name}
+                </button>
+                <button
+                  className="chip-edit"
+                  title={`Rename "${tpl.name}"`}
+                  aria-label={`Rename template ${tpl.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    startRename(tpl)
+                  }}
+                >
+                  ✎
+                </button>
+                <button
+                  className="chip-remove"
+                  title={`Remove "${tpl.name}"`}
+                  aria-label={`Remove template ${tpl.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteTemplate(tpl.id)
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            )
+          )}
+          {savingName !== null ? (
+            <div className="chip-wrap chip-saving">
+              <input
+                className="chip-rename-input"
+                value={savingName}
+                autoFocus
+                onChange={(e) => setSavingName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitSave()
+                  else if (e.key === 'Escape') setSavingName(null)
+                }}
+                aria-label="New template name"
+              />
+              <button className="chip-edit" title="Save" aria-label="Save template" onClick={commitSave}>
+                ✓
               </button>
               <button
                 className="chip-remove"
-                title={`Remove "${tpl.name}"`}
-                aria-label={`Remove template ${tpl.name}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDeleteTemplate(tpl.id)
-                }}
+                title="Cancel"
+                aria-label="Cancel saving template"
+                onClick={() => setSavingName(null)}
               >
                 ×
               </button>
             </div>
-          ))}
-          <button className="chip add" onClick={() => onSaveTemplate(currentCfg())}>
-            + Save current
-          </button>
+          ) : (
+            <button className="chip add" onClick={() => setSavingName(defaultTemplateName())}>
+              + Save current
+            </button>
+          )}
         </div>
       </div>
 
