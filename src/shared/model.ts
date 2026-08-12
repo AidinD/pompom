@@ -78,16 +78,14 @@ export function growLabels(labels: string[], count: number): string[] {
 }
 
 /**
- * Build the running timeline: work,rest,work,rest,…,work.
- * A rest is inserted only BETWEEN pomodoros — no trailing rest after the last.
- * The session's final rest (right before its last pomodoro) uses `longRest`
- * minutes instead of `rest` — the session itself is the "every N pomodoros"
- * cycle, so its last break is the long one, no separate interval to configure.
- * Task labels attach to work steps only.
+ * Build the running timeline: work,rest,work,rest,…,work,long-rest.
+ * A short rest is inserted only BETWEEN pomodoros; the long rest is a
+ * trailing step AFTER the session's last pomodoro — the session itself is
+ * the "every N pomodoros" cycle, so its long break comes once the cycle is
+ * done, not before the final pomodoro. Task labels attach to work steps only.
  */
 export function buildTimeline(cfg: Cfg): TimelineStep[] {
   const timeline: TimelineStep[] = []
-  const lastRestIdx = cfg.count - 2
   for (let i = 0; i < cfg.count; i++) {
     timeline.push({
       type: 'work',
@@ -96,14 +94,11 @@ export function buildTimeline(cfg: Cfg): TimelineStep[] {
       pomoIndex: i
     })
     if (i < cfg.count - 1) {
-      const isLongRest = i === lastRestIdx
-      timeline.push({
-        type: 'rest',
-        label: isLongRest ? 'Long rest' : 'Rest',
-        mins: isLongRest ? cfg.longRest : cfg.rest,
-        pomoIndex: i
-      })
+      timeline.push({ type: 'rest', label: 'Rest', mins: cfg.rest, pomoIndex: i })
     }
+  }
+  if (cfg.count > 1) {
+    timeline.push({ type: 'rest', label: 'Long rest', mins: cfg.longRest, pomoIndex: cfg.count - 1 })
   }
   return timeline
 }
