@@ -177,6 +177,14 @@ function registerMiniIpc(): void {
       mainWindow.webContents.send('mini:action', action)
     }
   })
+
+  // Clicking the widget anywhere but its Pause/Stop buttons just reopens the
+  // main window — the session keeps running unattended, same as Pause/Stop but
+  // without acting on the engine.
+  ipcMain.on('mini:restore', () => {
+    if (miniWindow && !miniWindow.isDestroyed()) miniWindow.hide()
+    restoreMainWindow()
+  })
 }
 
 function restoreMainWindow(): void {
