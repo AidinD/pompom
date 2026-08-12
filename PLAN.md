@@ -12,11 +12,12 @@ engine (`Date.now()`-delta authority) with pause/resume/skip/stop; the timer
 and session-complete views; the fullscreen always-on-top takeover window with a
 grace countdown and a required Confirm (never auto-advances); and the optional
 frameless, transparent, click-through ambient meter bar, driven live over IPC.
+The app icon (neon-tomato logo) is set: `build/icon.ico` for the packaged
+exe/installer, `resources/icon.png` for the BrowserWindow.
 See [README.md](README.md) for how to run it.
 
 Deferred to later (not in v1):
 - Packaging / distribution (installer, code signing, auto-update).
-- A real application icon.
 - A configurable grace-period length (currently hard-coded `GRACE_SECS = 5`).
 - Any further visual polish and cross-platform support.
 
