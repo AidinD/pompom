@@ -52,9 +52,7 @@ export default function TimerView({
   const ringSub = isWork ? `Pomodoro ${pomoNum} of ${count}` : `Break after pomodoro ${pomoNum}`
 
   const next = timeline[curIdx + 1]
-  const nextText = next
-    ? `${next.type === 'work' ? next.label : 'Rest'} · ${next.mins} min`
-    : 'Session complete'
+  const nextText = next ? `${next.label} · ${next.mins} min` : 'Session complete'
 
   return (
     <section className="view" id="view-timer">

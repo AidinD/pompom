@@ -56,7 +56,6 @@ export default function ConfigView({
   const [work, setWork] = useState(String(initialCfg.work))
   const [rest, setRest] = useState(String(initialCfg.rest))
   const [longRest, setLongRest] = useState(String(initialCfg.longRest))
-  const [longRestEvery, setLongRestEvery] = useState(String(initialCfg.longRestEvery))
   const [labels, setLabels] = useState<string[]>(growLabels(initialCfg.labels, initialCfg.count))
 
   // Inline "save as" naming: clicking "+ Save current" opens a text input
@@ -88,7 +87,6 @@ export default function ConfigView({
       work: parseInt(work, 10) || DEFAULT_CFG.work,
       rest: parseInt(rest, 10) || DEFAULT_CFG.rest,
       longRest: parseInt(longRest, 10) || DEFAULT_CFG.longRest,
-      longRestEvery: parseInt(longRestEvery, 10) || DEFAULT_CFG.longRestEvery,
       labels: growLabels(labels, count)
     }
   }
@@ -159,35 +157,21 @@ export default function ConfigView({
             <span className="unit">min</span>
           </div>
         </div>
-      </div>
-
-      <div className="duration-row">
-        <div className="field">
-          <label>Long rest</label>
-          <div className="num-input">
-            <input
-              type="number"
-              min={1}
-              value={longRest}
-              onChange={(e) => setLongRest(e.target.value)}
-              aria-label="Long rest minutes"
-            />
-            <span className="unit">min</span>
+        {count > 1 && (
+          <div className="field">
+            <label>Long rest</label>
+            <div className="num-input">
+              <input
+                type="number"
+                min={1}
+                value={longRest}
+                onChange={(e) => setLongRest(e.target.value)}
+                aria-label="Long rest minutes (the session's final break)"
+              />
+              <span className="unit">min</span>
+            </div>
           </div>
-        </div>
-        <div className="field">
-          <label>Every</label>
-          <div className="num-input">
-            <input
-              type="number"
-              min={1}
-              value={longRestEvery}
-              onChange={(e) => setLongRestEvery(e.target.value)}
-              aria-label="Take the long rest every N pomodoros"
-            />
-            <span className="unit">pomodoros</span>
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="field">
