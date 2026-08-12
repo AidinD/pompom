@@ -5,6 +5,16 @@ import { readStore, writeStore } from './store'
 import type { StoreData } from '../shared/store'
 import type { AmbientTick, MiniAction, MiniTick, TakeoverStep } from '../shared/ipc'
 
+// Per-window `backgroundThrottling: false` stops Chromium from throttling a
+// window's own timers once it loses focus, but Windows' native occlusion
+// tracking is a separate signal: once another window fully covers ours,
+// Chromium still treats it as occluded and clamps its timers regardless of
+// that per-window setting — which is exactly "after a while" (once the user
+// alt-tabs away or another window covers the main window) that the ambient
+// bar/countdown stall despite the earlier per-window fix. Disabling both
+// features at the app level removes that second throttling path.
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling')
+
 let mainWindow: BrowserWindow | null = null
 let takeoverWindow: BrowserWindow | null = null
 let ambientWindow: BrowserWindow | null = null
