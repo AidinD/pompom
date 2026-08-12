@@ -7,6 +7,7 @@ import ConfigView from './views/ConfigView'
 import TimerView from './views/TimerView'
 import CompleteView from './views/CompleteView'
 import { useTimerEngine } from './hooks/useTimerEngine'
+import { playChime } from './sound'
 
 /** Narrow an arbitrary persisted theme string to a known ThemeId. */
 function coerceTheme(id: string): ThemeId {
@@ -41,6 +42,7 @@ export default function App(): JSX.Element {
     onStepPending: (nextIdx, timeline) => {
       const next = timeline[nextIdx]
       if (!next) return
+      playChime()
       window.pompom.takeover.show({
         type: next.type,
         label: next.label,
@@ -49,7 +51,10 @@ export default function App(): JSX.Element {
         graceSecs: GRACE_SECS
       })
     },
-    onComplete: () => window.pompom.takeover.hide(),
+    onComplete: () => {
+      playChime()
+      window.pompom.takeover.hide()
+    },
     onStop: () => window.pompom.takeover.hide()
   })
 
