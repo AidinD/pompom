@@ -318,9 +318,16 @@ function getTakeoverWindow(): BrowserWindow {
 }
 
 function createMainWindow(): void {
+  // Size against the actual screen so the default config view (4 pomodoros)
+  // fits without scrolling on typical displays, while never exceeding the
+  // work area on smaller ones — the body still scrolls as a fallback for
+  // taller configs (see global.css).
+  const { workAreaSize } = screen.getPrimaryDisplay()
+  const height = Math.min(980, workAreaSize.height - 40)
+
   mainWindow = new BrowserWindow({
     width: 560,
-    height: 860,
+    height,
     minWidth: 460,
     minHeight: 600,
     show: false,
