@@ -169,8 +169,7 @@ export default function App(): JSX.Element {
     setCfgKey((k) => k + 1)
   }
 
-  function handleSaveTemplate(current: Cfg): void {
-    const name = `Custom · ${current.count}×${current.work}/${current.rest}`
+  function handleSaveTemplate(current: Cfg, name: string): void {
     const tpl: Template = {
       id: `custom-${Date.now()}`,
       name,
@@ -183,6 +182,12 @@ export default function App(): JSX.Element {
 
   function handleDeleteTemplate(id: string): void {
     const next = templates.filter((t) => t.id !== id)
+    setTemplates(next)
+    void window.pompom.store.set({ templates: next })
+  }
+
+  function handleRenameTemplate(id: string, name: string): void {
+    const next = templates.map((t) => (t.id === id ? { ...t, name } : t))
     setTemplates(next)
     void window.pompom.store.set({ templates: next })
   }
@@ -239,6 +244,7 @@ export default function App(): JSX.Element {
           onLoadTemplate={handleLoadTemplate}
           onSaveTemplate={handleSaveTemplate}
           onDeleteTemplate={handleDeleteTemplate}
+          onRenameTemplate={handleRenameTemplate}
           onThemeChange={handleThemeChange}
         />
       )}
