@@ -47,6 +47,12 @@
   align-items: center;
   gap: 7px;
 }
+.app-version {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: var(--text-faint);
+}
 .brand-mark {
   width: 14px;
   height: 14px;
