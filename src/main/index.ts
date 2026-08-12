@@ -207,8 +207,10 @@ function getTakeoverWindow(): BrowserWindow {
 
 function createMainWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 520,
-    height: 760,
+    width: 560,
+    height: 860,
+    minWidth: 460,
+    minHeight: 600,
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#0d0f13',

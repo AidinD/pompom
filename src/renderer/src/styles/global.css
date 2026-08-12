@@ -5,8 +5,7 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
 }
 
@@ -19,6 +18,9 @@ body {
   -webkit-font-smoothing: antialiased;
   user-select: none;
   min-height: 100vh;
+  /* The config view's content height varies with the pomodoro count (1-8
+     task rows); scroll rather than clip when it's taller than the window. */
+  overflow-y: auto;
   transition:
     background 0.5s var(--ease, ease),
     color 0.5s var(--ease, ease);
@@ -30,6 +32,7 @@ body {
 }
 
 #root {
+  min-height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
