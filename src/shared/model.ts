@@ -15,10 +15,8 @@ export interface Cfg {
   work: number
   rest: number
   labels: string[]
-  /** Minutes for the longer break inserted every `longRestEvery`th rest. */
+  /** Minutes for the long break — the last rest before the session's final pomodoro. */
   longRest: number
-  /** Take the long break every Nth pomodoro (classic Pomodoro default: 4). */
-  longRestEvery: number
 }
 
 /** One resolved step in the running session timeline. */
@@ -57,8 +55,7 @@ export const DEFAULT_CFG: Cfg = {
   work: 25,
   rest: 5,
   labels: ['Task A', 'Task B', 'Task C', 'Task D'],
-  longRest: 15,
-  longRestEvery: 4
+  longRest: 15
 }
 
 export function clampCount(n: number): number {
@@ -83,12 +80,14 @@ export function growLabels(labels: string[], count: number): string[] {
 /**
  * Build the running timeline: work,rest,work,rest,…,work.
  * A rest is inserted only BETWEEN pomodoros — no trailing rest after the last.
- * Every `longRestEvery`th rest (after that many completed pomodoros) uses
- * `longRest` minutes instead of `rest`, mirroring the classic Pomodoro
- * technique's longer break. Task labels attach to work steps only.
+ * The session's final rest (right before its last pomodoro) uses `longRest`
+ * minutes instead of `rest` — the session itself is the "every N pomodoros"
+ * cycle, so its last break is the long one, no separate interval to configure.
+ * Task labels attach to work steps only.
  */
 export function buildTimeline(cfg: Cfg): TimelineStep[] {
   const timeline: TimelineStep[] = []
+  const lastRestIdx = cfg.count - 2
   for (let i = 0; i < cfg.count; i++) {
     timeline.push({
       type: 'work',
@@ -97,7 +96,7 @@ export function buildTimeline(cfg: Cfg): TimelineStep[] {
       pomoIndex: i
     })
     if (i < cfg.count - 1) {
-      const isLongRest = cfg.longRestEvery > 0 && (i + 1) % cfg.longRestEvery === 0
+      const isLongRest = i === lastRestIdx
       timeline.push({
         type: 'rest',
         label: isLongRest ? 'Long rest' : 'Rest',
@@ -130,8 +129,7 @@ export const SEED_TEMPLATES: Template[] = [
       work: 50,
       rest: 10,
       labels: ['Writing', 'Writing', 'Review', 'Planning'],
-      longRest: 20,
-      longRestEvery: 4
+      longRest: 20
     }
   },
   {
@@ -142,8 +140,7 @@ export const SEED_TEMPLATES: Template[] = [
       work: 25,
       rest: 5,
       labels: ['Task A', 'Task B', 'Task C', 'Task D'],
-      longRest: 15,
-      longRestEvery: 4
+      longRest: 15
     }
   }
 ]
