@@ -116,3 +116,36 @@
   --accent: #c6883f;
   --accent-soft: rgba(198, 136, 63, 0.14);
 }
+
+/* ------------------------------------------------------- ZEN ------ */
+/* A calm, minimal palette: near-monochrome stone, muted sage/sand accents,
+   no glow — the visual equivalent of "nothing to react to, just breathe". */
+.theme-zen {
+  --bg: #15171b;
+  --bg-2: #1a1d22;
+  --surface: #1e2126;
+  --surface-2: #262a30;
+  --border: #30343b;
+  --text: #e7e9ec;
+  --text-dim: #9aa0a8;
+  --text-faint: #5c6169;
+
+  --accent: #7ea393;
+  --accent-soft: rgba(126, 163, 147, 0.12);
+  --accent-glow: transparent; /* zen has no glow */
+  --accent-ink: #12160c;
+
+  --radius: 20px;
+  --radius-sm: 12px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --app-bg: radial-gradient(1000px 620px at 50% -10%, #1c1f24 0%, var(--bg) 65%);
+}
+.theme-zen.state-work {
+  --accent: #7ea393;
+  --accent-soft: rgba(126, 163, 147, 0.12);
+}
+.theme-zen.state-rest {
+  --accent: #b79a7c;
+  --accent-soft: rgba(183, 154, 124, 0.12);
+}

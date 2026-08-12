@@ -7,7 +7,7 @@
  * match and the accent hue shifts correctly.
  */
 
-export type ThemeId = 'neon' | 'paper' | 'nature'
+export type ThemeId = 'neon' | 'paper' | 'nature' | 'zen'
 export type SessionState = 'work' | 'rest'
 
 export interface ThemeDef {
@@ -43,6 +43,13 @@ export const THEMES: ThemeDef[] = [
     className: 'theme-nature',
     swatchWork: '#86a563',
     swatchRest: '#c6883f'
+  },
+  {
+    id: 'zen',
+    name: 'Zen',
+    className: 'theme-zen',
+    swatchWork: '#7ea393',
+    swatchRest: '#b79a7c'
   }
 ]
 

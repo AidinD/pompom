@@ -442,6 +442,21 @@
     opacity: 0.7;
   }
 }
+/* Zen's dot breathes slowly — a calmer, longer cycle than any other theme. */
+.theme-zen .step-badge .pulse-dot {
+  animation: dotBreathe 4s ease-in-out infinite;
+}
+@keyframes dotBreathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
 
 .task-label {
   font-size: 22px;
@@ -513,6 +528,19 @@
   }
   100% {
     opacity: 1;
+  }
+}
+/* Zen: the slowest, softest fade — no bloom, no growth, just a breath. */
+.theme-zen .ring-prog.pulse {
+  animation: ringBreathe 1.8s var(--ease);
+}
+@keyframes ringBreathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
   }
 }
 /* Nature: a gentle grow-in from 94% scale (variant-d-nature.html). */
@@ -860,19 +888,22 @@ body.body-fullbleed #root {
     box-shadow: 0 10px 56px -2px var(--accent-glow);
   }
 }
-/* Paper & Nature have transparent --accent-glow, so the glow-based confirmPulse
-   and box-shadow hover are invisible. Both mocks instead use a 999px pill and a
-   brightness hover for the ready-state feedback (matches variant-b/variant-d). */
+/* Paper, Nature & Zen have transparent --accent-glow, so the glow-based
+   confirmPulse and box-shadow hover are invisible. They use a 999px pill and
+   a brightness hover for the ready-state feedback instead. */
 .theme-paper .btn-confirm,
-.theme-nature .btn-confirm {
+.theme-nature .btn-confirm,
+.theme-zen .btn-confirm {
   border-radius: 999px;
 }
 .theme-paper .btn-confirm.ready,
-.theme-nature .btn-confirm.ready {
+.theme-nature .btn-confirm.ready,
+.theme-zen .btn-confirm.ready {
   animation: none;
 }
 .theme-paper .btn-confirm.ready:hover,
-.theme-nature .btn-confirm.ready:hover {
+.theme-nature .btn-confirm.ready:hover,
+.theme-zen .btn-confirm.ready:hover {
   transform: translateY(-2px);
   filter: brightness(1.08);
   box-shadow: none;
