@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { fmt } from '@shared/model'
+import { pickRestTip } from '@shared/restTips'
 import type { TimerEngine } from '../hooks/useTimerEngine'
 
 /** SVG ring geometry (matches the mock: r=110 in a 240×240 viewBox). */
@@ -35,6 +37,12 @@ export default function TimerView({
   const count = cfg?.count ?? 0
   const pomoNum = (step?.pomoIndex ?? 0) + 1
 
+  // Pick one rest-break suggestion per rest step (not on every render).
+  const [restTip, setRestTip] = useState('')
+  useEffect(() => {
+    setRestTip(!isWork ? pickRestTip() : '')
+  }, [curIdx, isWork])
+
   const ringSub = isWork ? `Pomodoro ${pomoNum} of ${count}` : `Break after pomodoro ${pomoNum}`
 
   const next = timeline[curIdx + 1]
@@ -49,7 +57,7 @@ export default function TimerView({
           <span className="pulse-dot" />
           <span>{isWork ? 'Work' : 'Rest'}</span>
         </div>
-        <div className="task-label">{step?.label ?? ''}</div>
+        <div className="task-label">{isWork ? step?.label ?? '' : restTip}</div>
 
         <div className="ring-wrap">
           <svg width="240" height="240" viewBox="0 0 240 240">

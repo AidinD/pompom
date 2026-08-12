@@ -697,6 +697,13 @@ body.body-fullbleed #root {
 .to-next b {
   color: var(--text);
 }
+.to-rest-tip {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: -24px;
+  margin-bottom: 36px;
+}
 
 .grace-ring {
   position: relative;
