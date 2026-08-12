@@ -151,7 +151,10 @@ function getAmbientWindow(): BrowserWindow {
       preload,
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // Keep the bar's CSS transitions running smoothly even though it is a
+      // frameless, non-focusable background strip.
+      backgroundThrottling: false
     }
   })
   ambientWindow.setAlwaysOnTop(true, 'screen-saver')
@@ -215,7 +218,12 @@ function createMainWindow(): void {
       preload,
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      // The main-window renderer is the timer authority (it owns the tick loop
+      // and pushes the ambient bar). Without this, Electron throttles/pauses its
+      // timers once the window is backgrounded — exactly when the user is
+      // working — so the countdown and the ambient overlay silently stall.
+      backgroundThrottling: false
     }
   })
 
