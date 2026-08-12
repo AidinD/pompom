@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { StoreData } from '../shared/store'
-import type { AmbientTick, TakeoverStep } from '../shared/ipc'
+import type { AmbientTick, MiniAction, MiniTick, TakeoverStep } from '../shared/ipc'
 
 // The PomPom API surface exposed to the renderer. Persistence (durable JSON
 // store) lands in plan step 4; the takeover multi-window bridge in step 8
@@ -48,6 +48,28 @@ const api = {
       const listener = (_e: unknown, tick: AmbientTick): void => cb(tick)
       ipcRenderer.on('ambient:tick', listener)
       return () => ipcRenderer.removeListener('ambient:tick', listener)
+    }
+  },
+  mini: {
+    /** (main window) Show/hide the pinned mini widget; also minimizes/restores the main window. */
+    setVisible: (visible: boolean): void => ipcRenderer.send('mini:setVisible', visible),
+    /** (main window) Push the current step/remaining/paused state to the widget. */
+    push: (tick: MiniTick): void => ipcRenderer.send('mini:push', tick),
+    /** (mini window) Fetch the last tick on mount (seed before the next push). */
+    get: (): Promise<MiniTick | null> => ipcRenderer.invoke('mini:get'),
+    /** (mini window) Subscribe to live ticks. Returns an unsubscribe. */
+    onTick: (cb: (tick: MiniTick) => void): (() => void) => {
+      const listener = (_e: unknown, tick: MiniTick): void => cb(tick)
+      ipcRenderer.on('mini:tick', listener)
+      return () => ipcRenderer.removeListener('mini:tick', listener)
+    },
+    /** (mini window) User clicked Pause or Stop — restores the main window. */
+    action: (action: MiniAction): void => ipcRenderer.send('mini:action', action),
+    /** (main window) Subscribe to actions fired from the mini widget. Returns an unsubscribe. */
+    onAction: (cb: (action: MiniAction) => void): (() => void) => {
+      const listener = (_e: unknown, action: MiniAction): void => cb(action)
+      ipcRenderer.on('mini:action', listener)
+      return () => ipcRenderer.removeListener('mini:action', listener)
     }
   }
 }

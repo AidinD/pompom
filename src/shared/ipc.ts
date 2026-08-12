@@ -41,3 +41,24 @@ export interface AmbientTick {
   /** `1 - frac` — elapsed fraction of the current step; the bar's fill width. */
   elapsedFrac: number
 }
+
+/**
+ * Live-state payload pushed to the pinned mini view (a tiny always-on-top
+ * widget in the corner of the screen, shown while the main window is
+ * minimized). Unlike the ambient bar it needs enough info to render a small
+ * readable card with working Pause/Stop controls.
+ */
+export interface MiniTick {
+  /** Active theme id, so the widget's accent matches the main window. */
+  theme: string
+  /** Whether the current step is a work or rest block. */
+  state: 'work' | 'rest'
+  /** Current step's task label ('Rest' for a rest step). */
+  label: string
+  /** Whole seconds remaining in the current step. */
+  remaining: number
+  paused: boolean
+}
+
+/** An action fired from the mini widget's controls, forwarded to the main window. */
+export type MiniAction = 'pause' | 'stop'
