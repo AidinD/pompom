@@ -21,6 +21,8 @@ export interface StoreData {
   theme: string
   /** Whether the ambient meter bar is enabled. */
   ambientEnabled: boolean
+  /** Whether the pinned mini view (auto-minimize while running) is enabled. */
+  miniPinned: boolean
 }
 
 /** Defaults used on first run / when the store file is missing or corrupt. */
@@ -28,5 +30,6 @@ export const DEFAULT_STORE: StoreData = {
   templates: SEED_TEMPLATES,
   lastConfig: DEFAULT_CFG,
   theme: 'neon',
-  ambientEnabled: false
+  ambientEnabled: false,
+  miniPinned: false
 }

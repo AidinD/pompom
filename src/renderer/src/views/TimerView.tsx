@@ -13,6 +13,10 @@ interface TimerViewProps {
   ambientEnabled: boolean
   /** Toggle the ambient meter bar on/off. */
   onToggleAmbient: () => void
+  /** Whether the pinned mini view is enabled (persisted in the parent). */
+  miniPinned: boolean
+  /** Toggle the pinned mini view on/off. */
+  onToggleMini: () => void
 }
 
 /**
@@ -30,7 +34,9 @@ interface TimerViewProps {
 export default function TimerView({
   engine,
   ambientEnabled,
-  onToggleAmbient
+  onToggleAmbient,
+  miniPinned,
+  onToggleMini
 }: TimerViewProps): JSX.Element {
   const { timeline, curIdx, step, cfg, remaining, frac, paused } = engine
   const isWork = step?.type !== 'rest'
@@ -130,6 +136,20 @@ export default function TimerView({
             aria-checked={ambientEnabled}
             aria-label="Toggle ambient meter bar"
             onClick={onToggleAmbient}
+          />
+        </div>
+
+        <div className="toggle-row">
+          <span className="lbl">
+            <span className="brand-mark" style={{ width: 12, height: 12 }} />
+            Pin mini view
+          </span>
+          <button
+            className={`switch${miniPinned ? ' on' : ''}`}
+            role="switch"
+            aria-checked={miniPinned}
+            aria-label="Toggle pinned mini view"
+            onClick={onToggleMini}
           />
         </div>
       </div>

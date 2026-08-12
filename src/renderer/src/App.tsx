@@ -29,6 +29,7 @@ export default function App(): JSX.Element {
   const [theme, setTheme] = useState<ThemeId>(DEFAULT_THEME)
   const [templates, setTemplates] = useState<Template[]>(SEED_TEMPLATES)
   const [ambientEnabled, setAmbientEnabled] = useState(false)
+  const [miniPinned, setMiniPinned] = useState(false)
 
   // Latest theme, reachable from the engine callbacks below without making the
   // callbacks (or a re-subscribe) depend on it.
@@ -68,6 +69,20 @@ export default function App(): JSX.Element {
     return window.pompom.takeover.onConfirmed(() => confirmRef.current())
   }, [])
 
+  // The mini widget's Pause/Stop buttons act on the engine and turn the pin off
+  // (the main process already restores the main window itself; this just keeps
+  // React state — and the persisted toggle — in sync with that).
+  const engineRef = useRef(engine)
+  engineRef.current = engine
+  useEffect(() => {
+    return window.pompom.mini.onAction((action) => {
+      if (action === 'pause') engineRef.current.pause()
+      else engineRef.current.stop()
+      setMiniPinned(false)
+      void window.pompom.store.set({ miniPinned: false })
+    })
+  }, [])
+
   // Load persisted state from disk once on mount.
   useEffect(() => {
     let cancelled = false
@@ -76,6 +91,7 @@ export default function App(): JSX.Element {
       setTemplates(s.templates?.length ? s.templates : SEED_TEMPLATES)
       setTheme(coerceTheme(s.theme))
       setAmbientEnabled(!!s.ambientEnabled)
+      setMiniPinned(!!s.miniPinned)
       if (s.lastConfig) setCfg(s.lastConfig)
       // Remount ConfigView so its local state re-seeds from the loaded config.
       setCfgKey((k) => k + 1)
@@ -118,6 +134,30 @@ export default function App(): JSX.Element {
     window.pompom.ambient.push({ theme, state, elapsedFrac: engine.elapsedFrac })
   }, [shouldShowAmbient, engine.paused, engine.elapsedFrac, theme, state])
 
+  // The mini widget is pinned (main window minimized) whenever the toggle is on
+  // AND a session is live — same "auto while running" contract as the ambient
+  // bar. It also mirrors that shape once un-pinned via `stop`/`onComplete`.
+  const shouldShowMini =
+    miniPinned && (engine.phase === 'running' || engine.phase === 'awaiting')
+
+  useEffect(() => {
+    window.pompom.mini.setVisible(shouldShowMini)
+  }, [shouldShowMini])
+
+  // Push the live remaining/paused state to the widget. Unlike the ambient bar
+  // this pushes even while paused, since the widget's whole job is to show
+  // "Paused" rather than freeze silently.
+  useEffect(() => {
+    if (!shouldShowMini) return
+    window.pompom.mini.push({
+      theme,
+      state,
+      label: engine.step?.label || (state === 'rest' ? 'Rest' : ''),
+      remaining: engine.remaining,
+      paused: engine.paused
+    })
+  }, [shouldShowMini, engine.remaining, engine.paused, engine.step, theme, state])
+
   function handleLoadTemplate(id: string): void {
     const tpl = templates.find((t) => t.id === id)
     if (!tpl) return
@@ -159,6 +199,16 @@ export default function App(): JSX.Element {
     // this handler only flips + persists the setting.
   }
 
+  function handleToggleMini(): void {
+    setMiniPinned((prev) => {
+      const next = !prev
+      void window.pompom.store.set({ miniPinned: next })
+      return next
+    })
+    // The effect keyed on `shouldShowMini` minimizes/restores the main window
+    // and shows/hides the widget; this handler only flips + persists the setting.
+  }
+
   const windowClass = `window state-${state}`
 
   return (
@@ -188,6 +238,8 @@ export default function App(): JSX.Element {
           engine={engine}
           ambientEnabled={ambientEnabled}
           onToggleAmbient={handleToggleAmbient}
+          miniPinned={miniPinned}
+          onToggleMini={handleToggleMini}
         />
       )}
 

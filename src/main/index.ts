@@ -3,11 +3,12 @@ import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { readStore, writeStore } from './store'
 import type { StoreData } from '../shared/store'
-import type { AmbientTick, TakeoverStep } from '../shared/ipc'
+import type { AmbientTick, MiniAction, MiniTick, TakeoverStep } from '../shared/ipc'
 
 let mainWindow: BrowserWindow | null = null
 let takeoverWindow: BrowserWindow | null = null
 let ambientWindow: BrowserWindow | null = null
+let miniWindow: BrowserWindow | null = null
 
 /** The step the takeover is currently gating (pull-based seed for its renderer). */
 let pendingTakeoverStep: TakeoverStep | null = null
@@ -15,8 +16,17 @@ let pendingTakeoverStep: TakeoverStep | null = null
 /** Latest ambient tick (pull-based seed so the bar can draw before the next push). */
 let lastAmbientTick: AmbientTick | null = null
 
+/** Latest mini-widget tick (pull-based seed so it can draw before the next push). */
+let lastMiniTick: MiniTick | null = null
+
 /** Thickness of the ambient bar strip, in px. */
 const AMBIENT_HEIGHT = 5
+
+/** Size of the pinned mini widget, in px. */
+const MINI_WIDTH = 240
+const MINI_HEIGHT = 96
+/** Gap from the work-area edges (screen minus the taskbar), in px. */
+const MINI_MARGIN = 16
 
 const preload = join(__dirname, '../preload/index.js')
 
@@ -26,7 +36,7 @@ const preload = join(__dirname, '../preload/index.js')
  * file. A single bundle serves every window; the hash selects the window role
  * (`#/` main, `#/takeover`, `#/ambient`).
  */
-function loadRoute(win: BrowserWindow, route: '' | 'takeover' | 'ambient'): void {
+function loadRoute(win: BrowserWindow, route: '' | 'takeover' | 'ambient' | 'mini'): void {
   const hash = route ? `#/${route}` : ''
   const devUrl = process.env['ELECTRON_RENDERER_URL']
   if (devUrl) {
@@ -121,6 +131,63 @@ function positionAmbientWindow(win: BrowserWindow): void {
 }
 
 /**
+ * Mini-widget IPC bridge. The main-window renderer decides when it should be
+ * pinned (a `miniPinned` toggle, mirroring `ambientEnabled`) and pushes ticks
+ * while it is; the widget's Pause/Stop buttons fire `mini:action`, which this
+ * process forwards to the main window AND immediately restores it itself
+ * (so restoring never depends on a renderer round-trip landing first).
+ */
+function registerMiniIpc(): void {
+  ipcMain.handle('mini:get', () => lastMiniTick)
+
+  ipcMain.on('mini:setVisible', (_event, visible: boolean) => {
+    if (visible) {
+      const win = getMiniWindow()
+      if (win.isDestroyed()) return
+      positionMiniWindow(win)
+      win.showInactive()
+      mainWindow?.minimize()
+    } else {
+      if (miniWindow && !miniWindow.isDestroyed()) miniWindow.hide()
+      restoreMainWindow()
+    }
+  })
+
+  ipcMain.on('mini:push', (_event, tick: MiniTick) => {
+    lastMiniTick = tick
+    if (miniWindow && !miniWindow.isDestroyed()) {
+      miniWindow.webContents.send('mini:tick', tick)
+    }
+  })
+
+  ipcMain.on('mini:action', (_event, action: MiniAction) => {
+    if (miniWindow && !miniWindow.isDestroyed()) miniWindow.hide()
+    restoreMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('mini:action', action)
+    }
+  })
+}
+
+function restoreMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+/** Pin the mini widget to the bottom-right of the work area (above the taskbar). */
+function positionMiniWindow(win: BrowserWindow): void {
+  const { workArea } = screen.getPrimaryDisplay()
+  win.setBounds({
+    x: workArea.x + workArea.width - MINI_WIDTH - MINI_MARGIN,
+    y: workArea.y + workArea.height - MINI_HEIGHT - MINI_MARGIN,
+    width: MINI_WIDTH,
+    height: MINI_HEIGHT
+  })
+}
+
+/**
  * The ambient meter bar (`#/ambient`): a frameless, transparent, always-on-top
  * strip pinned to the top edge of the primary display. It is click-through
  * (`setIgnoreMouseEvents(true, { forward: true })` after load) so it never
@@ -172,6 +239,51 @@ function getAmbientWindow(): BrowserWindow {
   })
   loadRoute(ambientWindow, 'ambient')
   return ambientWindow
+}
+
+/**
+ * The pinned mini widget (`#/mini`): a small, frameless, always-on-top card in
+ * the bottom-right corner of the work area, shown while a session is running
+ * with the "pin mini view" toggle on (the main window is minimized for the
+ * duration). Unlike the ambient bar it takes clicks — its Pause/Stop buttons
+ * restore the main window (see `registerMiniIpc`).
+ */
+function getMiniWindow(): BrowserWindow {
+  if (miniWindow && !miniWindow.isDestroyed()) return miniWindow
+  miniWindow = new BrowserWindow({
+    width: MINI_WIDTH,
+    height: MINI_HEIGHT,
+    show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    title: 'PomPom',
+    webPreferences: {
+      preload,
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false
+    }
+  })
+  miniWindow.setAlwaysOnTop(true, 'screen-saver')
+  miniWindow.webContents.once('did-finish-load', () => {
+    if (miniWindow && !miniWindow.isDestroyed() && lastMiniTick) {
+      miniWindow.webContents.send('mini:tick', lastMiniTick)
+    }
+  })
+  miniWindow.on('closed', () => {
+    miniWindow = null
+  })
+  loadRoute(miniWindow, 'mini')
+  return miniWindow
 }
 
 /**
@@ -238,6 +350,13 @@ function createMainWindow(): void {
     return { action: 'deny' }
   })
 
+  // If the user restores the main window themselves (taskbar click, Win+Tab,
+  // …) rather than via the mini widget's Pause/Stop, hide the widget too —
+  // otherwise it would linger on top of the now-visible main window.
+  mainWindow.on('restore', () => {
+    if (miniWindow && !miniWindow.isDestroyed()) miniWindow.hide()
+  })
+
   loadRoute(mainWindow, '')
 
   mainWindow.on('closed', () => {
@@ -245,6 +364,7 @@ function createMainWindow(): void {
     // Don't leave the aux windows orphaned if the main window closes.
     if (takeoverWindow && !takeoverWindow.isDestroyed()) takeoverWindow.close()
     if (ambientWindow && !ambientWindow.isDestroyed()) ambientWindow.close()
+    if (miniWindow && !miniWindow.isDestroyed()) miniWindow.close()
   })
 }
 
@@ -252,6 +372,7 @@ app.whenReady().then(() => {
   registerStoreIpc()
   registerTakeoverIpc()
   registerAmbientIpc()
+  registerMiniIpc()
   createMainWindow()
 
   app.on('activate', () => {
