@@ -1,5 +1,21 @@
 # Decisions
 
+## 2026-08-12 - App icon generated from the neon-tomato logo
+
+Decision: ship the app icon from Aidin's `pompomlogo.png` (a neon-tomato on a
+dark rounded square). Two artifacts committed: `build/icon.ico` (multi-size
+16-256px, PNG-compressed frames) drives the packaged exe/installer/taskbar via
+electron-builder `build.win.icon`; `resources/icon.png` (256px) is imported in
+the main process (`icon from '../../resources/icon.png?asset'`) for the
+BrowserWindow. `resources/**` was added to `build.files` so the png ships inside
+the asar at the path the `?asset` import resolves to.
+Why/how to regenerate: the source PNG has an OPAQUE checkerboard background (not
+real alpha), so the icons were cut with a PowerShell + System.Drawing script
+that (1) finds the dark rounded-square by luminance, (2) turns near-gray light
+pixels transparent, (3) pads to a centered square, resizes, and assembles the
+ICO by hand. To redo, re-run that crop-by-darkness approach — a plain alpha-trim
+does nothing on this source.
+
 ## 2026-08-11 - Electron + React, not a plain web app
 
 Decision: build as an Electron desktop app.
