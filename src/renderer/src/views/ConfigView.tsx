@@ -21,6 +21,8 @@ interface ConfigViewProps {
   onLoadTemplate: (id: string) => void
   /** Called with the current form config to save it as a new template. */
   onSaveTemplate: (cfg: Cfg) => void
+  /** Called with a template's id when its remove ("x") button is clicked. */
+  onDeleteTemplate: (id: string) => void
   /** Called when a theme swatch is picked. */
   onThemeChange: (id: ThemeId) => void
 }
@@ -44,6 +46,7 @@ export default function ConfigView({
   onStart,
   onLoadTemplate,
   onSaveTemplate,
+  onDeleteTemplate,
   onThemeChange
 }: ConfigViewProps): JSX.Element {
   const [count, setCount] = useState(initialCfg.count)
@@ -145,9 +148,22 @@ export default function ConfigView({
         <label>Templates</label>
         <div className="template-bar">
           {templates.map((tpl) => (
-            <button key={tpl.id} className="chip" onClick={() => onLoadTemplate(tpl.id)}>
-              {tpl.name}
-            </button>
+            <div className="chip-wrap" key={tpl.id}>
+              <button className="chip" onClick={() => onLoadTemplate(tpl.id)}>
+                {tpl.name}
+              </button>
+              <button
+                className="chip-remove"
+                title={`Remove "${tpl.name}"`}
+                aria-label={`Remove template ${tpl.name}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDeleteTemplate(tpl.id)
+                }}
+              >
+                ×
+              </button>
+            </div>
           ))}
           <button className="chip add" onClick={() => onSaveTemplate(currentCfg())}>
             + Save current
