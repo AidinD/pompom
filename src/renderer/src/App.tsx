@@ -231,6 +231,7 @@ export default function App(): JSX.Element {
         <span className="app-name">
           <span className="brand-mark" />
           PomPom
+          <span className="app-version">v{__APP_VERSION__}</span>
         </span>
       </div>
 
