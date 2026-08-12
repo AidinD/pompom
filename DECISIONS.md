@@ -1,5 +1,65 @@
 # Decisions
 
+## 2026-08-12 - Long rest is a trailing step after the session's last pomodoro
+
+Decision: `Cfg.longRest` (minutes) with no separate interval field — the
+timeline is `work,rest,work,...,work,long-rest`, i.e. a long rest is always
+appended once after the final pomodoro. Every rest *between* pomodoros stays
+a normal short rest. The "Long rest" field in `ConfigView.tsx` is hidden when
+`count <= 1` (nothing to append after). Old persisted configs/templates
+missing the field fall back via `coerceCfg()` (merge onto `DEFAULT_CFG`) in
+`App.tsx`.
+Alternatives considered, in order tried and rejected:
+1. Classic-Pomodoro `longRest` + `longRestEvery` ("every Nth pomodoro gets a
+   long break", default every 4th) - rejected by Aidin: PomPom's session
+   already IS the fixed cycle (1-8 pomodoros), so a repeating "every N" inside
+   it doesn't fit the model.
+2. Always make the session's *last existing rest* (the one before the final
+   pomodoro) long, dropping `longRestEvery` - shipped as commit `bd44c03`, but
+   was still wrong per Aidin's screenshot: the long rest landed **before** the
+   final pomodoro, so the session ended right after that pomodoro with no
+   break at all - the opposite of the intent.
+Why the final form: a long rest is only useful as a cooldown once the whole
+session's work is done, so it has to come after the last pomodoro, not before
+it - fixed in `ff68767`.
+
+## 2026-08-12 - Ambient/timer background-throttling fix needed an app-level switch, not just per-window
+
+Decision: disable Chromium's native-occlusion-tracking and intensive
+wake-up throttling app-wide via
+`app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling')`
+in `src/main/index.ts`, in addition to the earlier per-window
+`backgroundThrottling: false` fix (from a prior session, commit `f445274`).
+Why: the per-window setting only stops Chromium's own timer throttling for
+that window when it loses focus. Windows' native occlusion tracking is a
+*separate* signal - once another window fully covers the main window (the
+timer authority), Chromium still clamps its timers regardless of the
+per-window setting. That's why the ambient bar/countdown kept stalling
+"after a while" even after the earlier fix. If a similar stall shows up in
+the mini-widget or elsewhere later, check both throttling paths, not just
+`backgroundThrottling`.
+
+## 2026-08-12 - Clicking the pinned mini widget itself reopens the main window
+
+Decision: added a `mini:restore` IPC message - clicking anywhere on the
+mini-widget card (not just its Pause/Stop buttons) hides the widget and
+restores the main window, without acting on the running session (unlike
+Pause/Stop, which also act on the timer engine). The buttons call
+`stopPropagation()` so their own actions stay distinct from the card's.
+Why: users expected the whole card to be clickable to bring the app back,
+not just the two small buttons.
+
+## 2026-08-12 - Fourth theme "Zen" added, following the Paper/Nature glow-free pattern
+
+Decision: added `zen` as a 4th `ThemeId` - near-monochrome stone palette,
+muted sage (`work`) / sand (`rest`) accents, `--accent-glow: transparent`
+(no glow, like Paper and Nature), a 999px pill confirm button with a
+brightness hover instead of a glow pulse, and its own slowest/softest
+breathing animations for the step-badge dot and ring pulse (a plain fade,
+not a pulse/sway/grow-in like the other themes).
+Why: extends the existing "some themes have no glow" pattern established by
+Paper/Nature rather than introducing a new visual mechanism.
+
 ## 2026-08-12 - Versioning: bump the patch on every commit, reset on minor/major
 
 Decision: `package.json` version's patch digit increments by 1 with every commit
