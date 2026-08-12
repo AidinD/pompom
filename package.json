@@ -1,6 +1,6 @@
 {
   "name": "pompom",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A Windows Pomodoro desktop app (Electron + React) with per-pomodoro task labels, a fullscreen takeover between steps, and an optional ambient meter bar.",
   "main": "./out/main/index.js",
   "author": "PomPom",
@@ -11,6 +11,8 @@
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "predist": "npm run clean",
     "dist": "electron-vite build && electron-builder --win --publish never"
   },
   "devDependencies": {
