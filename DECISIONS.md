@@ -1,5 +1,18 @@
 # Decisions
 
+## 2026-08-12 - Versioning: bump the patch on every commit, reset on minor/major
+
+Decision: `package.json` version's patch digit increments by 1 with every commit
+(`0.1.3` -> `0.1.4`), reset to 0 whenever the minor or major digit bumps
+(`0.1.9` -> `0.2.0`). Minor/major bumps are a deliberate call (new user-facing
+scope, breaking change), not automatic. Missed several bumps across the
+2026-08-12 feature commits (icon, chime, rest tips, mini view, window sizing) —
+`0.1.0` shipped unchanged across all of them — so the version was reset to
+`0.1.1` to restart the count; those commits were not retroactively renumbered.
+Why: Aidin's standing convention across his other projects, wasn't written down
+for this one yet. Doing it per-commit (not per-release) means every build's
+version is traceable to an exact commit without needing git log.
+
 ## 2026-08-12 - App icon generated from the neon-tomato logo
 
 Decision: ship the app icon from Aidin's `pompomlogo.png` (a neon-tomato on a
