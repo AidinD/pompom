@@ -65,6 +65,8 @@ const api = {
     },
     /** (mini window) User clicked Pause or Stop — restores the main window. */
     action: (action: MiniAction): void => ipcRenderer.send('mini:action', action),
+    /** (mini window) User clicked the widget itself — just reopen the main window. */
+    restore: (): void => ipcRenderer.send('mini:restore'),
     /** (main window) Subscribe to actions fired from the mini widget. Returns an unsubscribe. */
     onAction: (cb: (action: MiniAction) => void): (() => void) => {
       const listener = (_e: unknown, action: MiniAction): void => cb(action)

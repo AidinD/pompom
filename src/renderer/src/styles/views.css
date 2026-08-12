@@ -944,6 +944,7 @@ body.body-mini #root {
   padding: 14px 16px;
   background: var(--bg-2);
   border: 1px solid var(--border);
+  cursor: pointer;
   border-radius: 14px;
   box-shadow:
     0 20px 50px -15px rgba(0, 0, 0, 0.6),

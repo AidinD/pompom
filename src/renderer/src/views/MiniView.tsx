@@ -16,7 +16,8 @@ function coerceTheme(id: string): ThemeId {
  * over IPC, same pull+push pattern as the ambient bar and takeover window.
  * Its Pause/Stop buttons don't act locally — they tell the main window what
  * to do and restore it, matching the contract "clicking pause or stop brings
- * back the normal window".
+ * back the normal window". Clicking the card itself (anywhere but those
+ * buttons) just reopens the main window without touching the running session.
  */
 export default function MiniView(): JSX.Element {
   const [tick, setTick] = useState<MiniTick | null>(null)
@@ -41,7 +42,13 @@ export default function MiniView(): JSX.Element {
   if (!tick) return <div className="mini-card" />
 
   return (
-    <div className={`mini-card state-${tick.state}`}>
+    <div
+      className={`mini-card state-${tick.state}`}
+      role="button"
+      title="Reopen PomPom"
+      aria-label="Reopen PomPom"
+      onClick={() => window.pompom.mini.restore()}
+    >
       <div className="mini-main">
         <div className="mini-badge">
           <span className="pulse-dot" />
@@ -58,7 +65,10 @@ export default function MiniView(): JSX.Element {
           className="mini-btn"
           title="Pause and reopen PomPom"
           aria-label="Pause and reopen PomPom"
-          onClick={() => window.pompom.mini.action('pause')}
+          onClick={(e) => {
+            e.stopPropagation()
+            window.pompom.mini.action('pause')
+          }}
         >
           ❙❙
         </button>
@@ -66,7 +76,10 @@ export default function MiniView(): JSX.Element {
           className="mini-btn"
           title="Stop and reopen PomPom"
           aria-label="Stop and reopen PomPom"
-          onClick={() => window.pompom.mini.action('stop')}
+          onClick={(e) => {
+            e.stopPropagation()
+            window.pompom.mini.action('stop')
+          }}
         >
           ■
         </button>
