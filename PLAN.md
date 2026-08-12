@@ -11,7 +11,10 @@ theme / ambient toggle (`pompom-store.json` in userData); the wall-clock timer
 engine (`Date.now()`-delta authority) with pause/resume/skip/stop; the timer
 and session-complete views; the fullscreen always-on-top takeover window with a
 grace countdown and a required Confirm (never auto-advances); and the optional
-frameless, transparent, click-through ambient meter bar, driven live over IPC.
+frameless, transparent, click-through ambient meter bar, driven live over IPC;
+a pinned mini view (auto-minimizes the main window to a small always-on-top
+corner card with Pause/Stop) as another optional toggle alongside it; a chime
+on step end; and rest-break suggestions shown during rest steps.
 The app icon (neon-tomato logo) is set: `build/icon.ico` for the packaged
 exe/installer, `resources/icon.png` for the BrowserWindow.
 See [README.md](README.md) for how to run it.
