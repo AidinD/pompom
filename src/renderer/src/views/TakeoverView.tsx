@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { DEFAULT_THEME, THEMES, applyTheme, type ThemeId } from '../themes/themes'
 import type { TakeoverStep } from '@shared/ipc'
+import { pickRestTip } from '@shared/restTips'
 
 /** Grace-ring geometry (matches the mock: r=68 in a 150×150 viewBox). */
 const GRACE_R = 68
@@ -26,6 +27,7 @@ export default function TakeoverView(): JSX.Element {
   const [step, setStep] = useState<TakeoverStep | null>(null)
   const [graceLeft, setGraceLeft] = useState(0)
   const [ready, setReady] = useState(false)
+  const [restTip, setRestTip] = useState('')
 
   // Seed the pending step on mount, then keep listening for pushes.
   useEffect(() => {
@@ -46,6 +48,11 @@ export default function TakeoverView(): JSX.Element {
     if (!step) return
     const state = step.type === 'rest' ? 'rest' : 'work'
     applyTheme(document.documentElement, coerceTheme(step.theme), state)
+  }, [step])
+
+  // Pick one rest-break suggestion per rest step (not on every render).
+  useEffect(() => {
+    setRestTip(step?.type === 'rest' ? pickRestTip() : '')
   }, [step])
 
   // Run the grace countdown. Derived from Date.now() so it stays honest, but the
@@ -87,6 +94,7 @@ export default function TakeoverView(): JSX.Element {
           {nextLabel} · {step.mins} min
         </b>
       </div>
+      {!isWork && restTip && <div className="to-rest-tip">{restTip}</div>}
 
       <div className={`grace-ring${ready ? ' done' : ''}`}>
         <div className="pulse-ring" />
