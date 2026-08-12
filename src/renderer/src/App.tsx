@@ -88,7 +88,10 @@ export default function App(): JSX.Element {
     let cancelled = false
     void window.pompom.store.get().then((s: StoreData) => {
       if (cancelled) return
-      setTemplates(s.templates?.length ? s.templates : SEED_TEMPLATES)
+      // The store always carries a real templates array (DEFAULT_STORE seeds it
+      // on first run), so trust it as-is — an intentionally emptied list (the
+      // user deleted every template) must stay empty, not bounce back to seeds.
+      setTemplates(s.templates ?? SEED_TEMPLATES)
       setTheme(coerceTheme(s.theme))
       setAmbientEnabled(!!s.ambientEnabled)
       setMiniPinned(!!s.miniPinned)
@@ -178,6 +181,12 @@ export default function App(): JSX.Element {
     void window.pompom.store.set({ templates: next })
   }
 
+  function handleDeleteTemplate(id: string): void {
+    const next = templates.filter((t) => t.id !== id)
+    setTemplates(next)
+    void window.pompom.store.set({ templates: next })
+  }
+
   function handleThemeChange(id: ThemeId): void {
     setTheme(id)
     void window.pompom.store.set({ theme: id })
@@ -229,6 +238,7 @@ export default function App(): JSX.Element {
           onStart={handleStart}
           onLoadTemplate={handleLoadTemplate}
           onSaveTemplate={handleSaveTemplate}
+          onDeleteTemplate={handleDeleteTemplate}
           onThemeChange={handleThemeChange}
         />
       )}
