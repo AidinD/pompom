@@ -932,7 +932,13 @@ body.body-ambient #root {
 }
 .ambient-bar {
   width: 100%;
-  height: 100%;
+  /* NOT `height: 100%`: `#root` only carries `min-height: 100%` (so the main
+     window's config view can scroll instead of clip), and a min-height does not
+     give the parent a definite height — so a percentage height here resolves to
+     `auto`, collapses to the empty fill's 0px, and the whole strip becomes
+     invisible. `100vh` is the window's own height and doesn't depend on the
+     ancestor chain. */
+  height: 100vh;
   background: rgba(255, 255, 255, 0.04);
   overflow: hidden;
 }

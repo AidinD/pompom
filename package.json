@@ -1,6 +1,6 @@
 {
   "name": "pompom",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "A Windows Pomodoro desktop app (Electron + React) with per-pomodoro task labels, a fullscreen takeover between steps, and an optional ambient meter bar.",
   "main": "./out/main/index.js",
   "author": "PomPom",

@@ -5,6 +5,16 @@ import { readStore, writeStore } from './store'
 import type { StoreData } from '../shared/store'
 import type { AmbientTick, MiniAction, MiniTick, TakeoverStep } from '../shared/ipc'
 
+// Per-window `backgroundThrottling: false` stops Chromium from throttling a
+// window's own timers once it loses focus, but Windows' native occlusion
+// tracking is a separate signal: once another window fully covers ours,
+// Chromium still treats it as occluded and clamps its timers regardless of
+// that per-window setting — which is exactly "after a while" (once the user
+// alt-tabs away or another window covers the main window) that the ambient
+// bar/countdown stall despite the earlier per-window fix. Disabling both
+// features at the app level removes that second throttling path.
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling')
+
 let mainWindow: BrowserWindow | null = null
 let takeoverWindow: BrowserWindow | null = null
 let ambientWindow: BrowserWindow | null = null
@@ -198,20 +208,15 @@ function positionMiniWindow(win: BrowserWindow): void {
 /**
  * The ambient meter bar (`#/ambient`): a frameless, transparent, always-on-top
  * strip pinned to the top edge of the primary display. It is click-through
- * (`setIgnoreMouseEvents(true, { forward: true })` right after creation) so
- * it never intercepts input, and stays out of the taskbar / Alt-Tab.
+ * (`setIgnoreMouseEvents(true, { forward: true })` after load) so it never
+ * intercepts input, and stays out of the taskbar / Alt-Tab.
  */
 function getAmbientWindow(): BrowserWindow {
   if (ambientWindow && !ambientWindow.isDestroyed()) return ambientWindow
-  // Built the same way as the mini widget (which reliably stays visible) —
-  // no `x`/`y` at construction (positioned via `positionAmbientWindow` right
-  // before every show, same as mini) and no `focusable: false`. Click-through
-  // is the only thing this window needs beyond mini's shape, applied via
-  // `setIgnoreMouseEvents` right away rather than gated behind
-  // `did-finish-load` (it's a native window property, not tied to content
-  // having loaded).
   const { bounds } = screen.getPrimaryDisplay()
   ambientWindow = new BrowserWindow({
+    x: bounds.x,
+    y: bounds.y,
     width: bounds.width,
     height: AMBIENT_HEIGHT,
     show: false,
@@ -223,6 +228,7 @@ function getAmbientWindow(): BrowserWindow {
     movable: false,
     minimizable: false,
     maximizable: false,
+    focusable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
     title: 'PomPom',
@@ -231,16 +237,19 @@ function getAmbientWindow(): BrowserWindow {
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
+      // Keep the bar's CSS transitions running smoothly even though it is a
+      // frameless, non-focusable background strip.
       backgroundThrottling: false
     }
   })
   ambientWindow.setAlwaysOnTop(true, 'screen-saver')
-  ambientWindow.setIgnoreMouseEvents(true, { forward: true })
+  // Let clicks pass straight through to whatever is underneath the strip.
   ambientWindow.webContents.once('did-finish-load', () => {
-    // Re-seed the bar with the latest tick in case a push arrived while it
-    // was still loading.
-    if (ambientWindow && !ambientWindow.isDestroyed() && lastAmbientTick) {
-      ambientWindow.webContents.send('ambient:tick', lastAmbientTick)
+    if (ambientWindow && !ambientWindow.isDestroyed()) {
+      ambientWindow.setIgnoreMouseEvents(true, { forward: true })
+      // Re-seed the bar with the latest tick in case a push arrived while it
+      // was still loading.
+      if (lastAmbientTick) ambientWindow.webContents.send('ambient:tick', lastAmbientTick)
     }
   })
   ambientWindow.on('closed', () => {
