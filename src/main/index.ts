@@ -122,7 +122,14 @@ function registerAmbientIpc(): void {
       // Show without stealing focus from the main window.
       win.showInactive()
     } else if (ambientWindow && !ambientWindow.isDestroyed()) {
-      ambientWindow.hide()
+      // Close rather than hide: on Windows a transparent/always-on-top window
+      // reused across a hide → show cycle can lose its compositor surface and
+      // stay permanently blank (only a fresh window reliably repaints, which is
+      // why restarting the whole app "fixed" it). Closing here means the next
+      // `getAmbientWindow()` call builds a brand-new window instead of reusing
+      // the stale one.
+      ambientWindow.close()
+      ambientWindow = null
     }
   })
 
