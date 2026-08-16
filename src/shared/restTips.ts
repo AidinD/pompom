@@ -5,7 +5,7 @@
 export const REST_TIPS: string[] = [
   'Grab some water.',
   'Stand up and stretch.',
-  'Look at something 20+ feet away for 20 seconds.',
+  'Look at something 6+ meters away for 20 seconds.',
   'Take a few slow breaths.',
   'Walk to another room and back.',
   'Roll your shoulders and neck.',
