@@ -228,7 +228,12 @@ function getAmbientWindow(): BrowserWindow {
     movable: false,
     minimizable: false,
     maximizable: false,
-    focusable: false,
+    // Deliberately NOT `focusable: false` — on Windows that flag combined with
+    // `alwaysOnTop` + `transparent` makes the window stop compositing (paints
+    // once, then goes permanently invisible) the first time it's hidden and
+    // shown again, since DWM never re-adds a non-activatable layered window to
+    // the composited stack. `showInactive()` + `setIgnoreMouseEvents` already
+    // give us "visible but never takes focus/clicks" without that bug.
     skipTaskbar: true,
     alwaysOnTop: true,
     title: 'PomPom',
