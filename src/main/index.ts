@@ -5,16 +5,6 @@ import { readStore, writeStore } from './store'
 import type { StoreData } from '../shared/store'
 import type { AmbientTick, MiniAction, MiniTick, TakeoverStep } from '../shared/ipc'
 
-// Per-window `backgroundThrottling: false` stops Chromium from throttling a
-// window's own timers once it loses focus, but Windows' native occlusion
-// tracking is a separate signal: once another window fully covers ours,
-// Chromium still treats it as occluded and clamps its timers regardless of
-// that per-window setting — which is exactly "after a while" (once the user
-// alt-tabs away or another window covers the main window) that the ambient
-// bar/countdown stall despite the earlier per-window fix. Disabling both
-// features at the app level removes that second throttling path.
-app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion,IntensiveWakeUpThrottling')
-
 let mainWindow: BrowserWindow | null = null
 let takeoverWindow: BrowserWindow | null = null
 let ambientWindow: BrowserWindow | null = null
@@ -122,14 +112,7 @@ function registerAmbientIpc(): void {
       // Show without stealing focus from the main window.
       win.showInactive()
     } else if (ambientWindow && !ambientWindow.isDestroyed()) {
-      // Close rather than hide: on Windows a transparent/always-on-top window
-      // reused across a hide → show cycle can lose its compositor surface and
-      // stay permanently blank (only a fresh window reliably repaints, which is
-      // why restarting the whole app "fixed" it). Closing here means the next
-      // `getAmbientWindow()` call builds a brand-new window instead of reusing
-      // the stale one.
-      ambientWindow.close()
-      ambientWindow = null
+      ambientWindow.hide()
     }
   })
 
@@ -235,12 +218,7 @@ function getAmbientWindow(): BrowserWindow {
     movable: false,
     minimizable: false,
     maximizable: false,
-    // Deliberately NOT `focusable: false` — on Windows that flag combined with
-    // `alwaysOnTop` + `transparent` makes the window stop compositing (paints
-    // once, then goes permanently invisible) the first time it's hidden and
-    // shown again, since DWM never re-adds a non-activatable layered window to
-    // the composited stack. `showInactive()` + `setIgnoreMouseEvents` already
-    // give us "visible but never takes focus/clicks" without that bug.
+    focusable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
     title: 'PomPom',
