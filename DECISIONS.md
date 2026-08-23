@@ -40,9 +40,23 @@ survives to 16px. A second finding from the same test: the calyx has to be one
 solid two-lobed shape with the stalk clear above it; separate leaf strokes merge
 into a bar across the top and the stalk vanishes behind it.
 
-Two drawings in the .ico, per the family rule: the full mark at 32 and up, a
-heavier calyx on a slightly larger body below that. It carries 20 and 24 as well
-as the usual ladder, for 125% and 150% display scaling.
+**One drawing at every size, unlike Jot and Nib.** They carry a simplified twin
+below 32px because their marks are stroked and thin under a pixel; PomPom's body
+is filled and survives 16px as it is. A second drawing is a second mark to
+approve, and 0.1.18 shipped proof of what that costs: the icon there stood in
+two tapered cones per lobe for the calyx path and grew a bolder variant for the
+small frames, so the taskbar carried a visibly different tomato from the header.
+The .ico still carries 20 and 24 alongside the usual ladder, for 125% and 150%
+display scaling - same drawing, rendered at each size rather than resampled.
+
+**The mark has no stalk, and the icon must not invent one.** `PomPomMark.tsx`
+carried `M50 36 V12` from the first draft and it never drew a pixel: the stroke
+paint is an objectBoundingBox gradient, a vertical line's bounding box has zero
+width, and SVG says an element with a degenerate gradient box is not rendered.
+So the mark that was approved is body plus calyx. The dead path is deleted
+rather than left in place - it renders as nothing in the header and as a stalk
+in any faithful rasteriser, which is exactly how the two drifted apart. Nudge
+had the same trap with a horizontal shaft.
 
 ## 2026-08-23 - Auto-update via electron-updater, the same wiring as Jot and Nib
 

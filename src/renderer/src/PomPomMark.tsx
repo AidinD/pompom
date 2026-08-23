@@ -38,10 +38,13 @@ export function PomPomMark({ size = 20 }: { size?: number }): JSX.Element {
           <stop offset="1" stopColor="#ff5545" />
         </linearGradient>
       </defs>
-      {/* The body, slightly wider than tall; then the stalk, which the calyx
-          then overlaps at its foot so the two read as one piece. */}
+      {/* Body and calyx, both filled - there is no stalk. An earlier revision
+          had one, `M50 36 V12`, and it never drew a pixel: a vertical line has
+          a zero-width bounding box, and an objectBoundingBox gradient over a
+          degenerate box means the element is not rendered at all. It is gone
+          rather than left in, because dead geometry here is geometry the app
+          icon would faithfully reproduce and the header would not. */}
       <ellipse cx="50" cy="66" rx="30" ry="27" fill="url(#pompom-tomato)" stroke="none" />
-      <path d="M50 36 V12" />
       <path
         d="M50 36 C39 36 31 31 26 23 C37 20 46 24 50 31 C54 24 63 20 74 23 C69 31 61 36 50 36 Z"
         fill="url(#pompom-tomato)"
