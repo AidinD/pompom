@@ -1,5 +1,29 @@
 # Decisions
 
+## 2026-08-23 - The type face is Jot's stack, not the mock's Inter
+
+The mocks specified Inter, and every theme named it first. It has never been
+what PomPom renders: Inter is not installed on the machine, so the stack fell
+through -apple-system and BlinkMacSystemFont to Segoe UI, which is what Jot,
+Nib and Nudge name outright.
+
+So the declaration was a divergence with no visual expression - and a trap.
+Installing Inter for anything else would have made PomPom the only one of four
+apps with different letterforms, with no commit to point at. All four themes
+now name `'Segoe UI', system-ui, -apple-system, sans-serif`, the family stack.
+Verified as a no-op: the config view renders pixel for pixel identically, zero
+of 358400 pixels changed.
+
+Paper keeps its serif `--font-display` for headlines; that is the one typographic
+thing a theme is allowed to vary.
+
+What was deliberately NOT aligned, having been mocked up and compared at full
+size: the corner radii. `--radius-sm` is 9px in Paper, 10 in Neon and 12 in
+Nature and Zen, against the family's 8. That variation is part of each theme's
+character rather than a drift from the family, and at 1:1 the difference is
+invisible - it only shows at 7x. `--radius` turned out to be dead entirely once
+the window went frameless and the card lost its corners.
+
 ## 2026-08-23 - Frameless window with a Jot/Nib-style header row
 
 Decision: the main window is `frame: false` and its header row IS the title bar

@@ -14,7 +14,7 @@ body {
      A neutral fallback keeps things readable before a theme class is applied. */
   background: var(--app-bg, #0d0f13);
   color: var(--text, #eef1f6);
-  font-family: var(--font, Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-family: var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif);
   -webkit-font-smoothing: antialiased;
   user-select: none;
   min-height: 100vh;
