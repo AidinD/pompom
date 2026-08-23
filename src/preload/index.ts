@@ -7,6 +7,17 @@ import type { AmbientTick, MiniAction, MiniTick, TakeoverStep } from '../shared/
 // (see .helm-goal/plan.md).
 const api = {
   ping: (): string => 'pong',
+  /** Frameless window: the header row's buttons drive the real window. */
+  minimizeWindow: (): Promise<void> => ipcRenderer.invoke('window:minimize'),
+  closeWindow: (): Promise<void> => ipcRenderer.invoke('window:close'),
+  /** An update finished downloading and is waiting for a restart. */
+  onUpdateReady: (cb: (version: string) => void): (() => void) => {
+    const listener = (_e: unknown, version: string): void => cb(version)
+    ipcRenderer.on('update:ready', listener)
+    return () => ipcRenderer.removeListener('update:ready', listener)
+  },
+  /** Quit and come back on the new version. */
+  installUpdate: (): void => ipcRenderer.send('update:install'),
   store: {
     /** Read the whole durable store. */
     get: (): Promise<StoreData> => ipcRenderer.invoke('store:get'),

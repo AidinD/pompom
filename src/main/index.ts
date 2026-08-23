@@ -1,6 +1,15 @@
 import { app, shell, screen, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
-import icon from '../../resources/icon.png?asset'
+// electron-updater is CommonJS; a named ESM import ("import { autoUpdater }")
+// fails at runtime in the packaged app. Import the default export and
+// destructure - the pattern electron-vite documents for CJS deps, and the one
+// Jot and Nib use.
+import electronUpdater from 'electron-updater'
+const { autoUpdater } = electronUpdater
+// The multi-size .ico rather than the single PNG, so Windows can pick the
+// frame for the current DPI scale instead of shrinking one bitmap - see
+// scripts/generate-icon.mjs.
+import icon from '../../resources/icon.ico?asset'
 import { readStore, writeStore } from './store'
 import type { StoreData } from '../shared/store'
 import type { AmbientTick, MiniAction, MiniTick, TakeoverStep } from '../shared/ipc'
@@ -54,6 +63,62 @@ function loadRoute(win: BrowserWindow, route: '' | 'takeover' | 'ambient' | 'min
   } else {
     win.loadFile(join(__dirname, '../renderer/index.html'), route ? { hash: `/${route}` } : {})
   }
+}
+
+/**
+ * Check GitHub for a newer release, once, at startup - the same arrangement as
+ * Jot and Nib.
+ *
+ * PomPom is unsigned, which does not stop electron-updater on Windows: the
+ * first install triggers SmartScreen, updates after that are silent. The
+ * download installs on quit rather than mid-session, which is the library's
+ * default and the right one for a timer you leave running all day; the renderer
+ * gets a toast offering to restart now.
+ *
+ * Never in development: there is no packaged app to replace, and the check only
+ * produces a confusing error in the log.
+ */
+function initAutoUpdater(): void {
+  if (!app.isPackaged) return
+
+  autoUpdater.on('update-available', (info) => {
+    console.log(`PomPom update available: ${info.version}`)
+  })
+  autoUpdater.on('update-not-available', (info) => {
+    console.log(`PomPom is up to date (${info.version})`)
+  })
+  autoUpdater.on('error', (error) => {
+    // Being offline is the common case here, and it is not worth a dialog.
+    console.error('PomPom update check failed', error)
+  })
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log(`PomPom update ${info.version} downloaded; it installs on quit`)
+    for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.send('update:ready', info.version)
+    }
+  })
+
+  void autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+    console.error('PomPom update check could not start', error)
+  })
+}
+
+/**
+ * Window controls, because the main window is frameless (like Jot and Nib) and
+ * its header row is the title bar. Minimise + close only: this is a 560px-wide
+ * utility panel, so a maximise button would be a button for nothing.
+ */
+function registerWindowIpc(): void {
+  ipcMain.handle('window:minimize', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+  ipcMain.handle('window:close', (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
+  })
+  // "Restart to update" in the toast: quit now and come back on the new version.
+  ipcMain.on('update:install', () => {
+    autoUpdater.quitAndInstall()
+  })
 }
 
 /** Persistence IPC bridge: renderer reads/writes the durable JSON store. */
@@ -349,6 +414,10 @@ function createMainWindow(): void {
     minWidth: 460,
     minHeight: 600,
     show: false,
+    // Frameless, like Jot and Nib: the app header row IS the title bar (drag
+    // handle plus window buttons), so the window is not topped by a second,
+    // OS-drawn one saying the same thing.
+    frame: false,
     autoHideMenuBar: true,
     backgroundColor: '#0d0f13',
     title: 'PomPom',
@@ -394,6 +463,8 @@ function createMainWindow(): void {
 }
 
 app.whenReady().then(() => {
+  initAutoUpdater()
+  registerWindowIpc()
   registerStoreIpc()
   registerTakeoverIpc()
   registerAmbientIpc()

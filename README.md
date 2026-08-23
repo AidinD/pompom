@@ -22,6 +22,11 @@ npm start        # preview the production build (electron-vite preview)
 
 Other scripts:
 
+- `npm run release` — clean, build, package, and publish a GitHub release. The
+  installed app picks the new version up on its next launch (electron-updater).
+- `node scripts/generate-icon.mjs` — redraw `resources/icon.png` and the
+  multi-size `resources/icon.ico` from the header mark. The output is committed;
+  run it after changing `PomPomMark.tsx` so the two stay one drawing.
 - `npm run typecheck` — run the TypeScript compiler for the node (main/preload) and web (renderer) tsconfigs without emitting.
 
 ## How it works

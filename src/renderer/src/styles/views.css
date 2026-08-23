@@ -6,68 +6,85 @@
    their respective plan steps.
    ========================================================================== */
 
-/* ---------- App window frame (the themed card that fills the window) ------- */
+/* ---------- App shell (the themed surface that fills the frameless window) -- */
+/* Jot and Nib fill their window edge to edge and let the header row be the
+   title bar; PomPom does the same, so a card floating inside a second, OS-drawn
+   frame is gone. The document background (the theme's --app-bg gradient) shows
+   through, which is what still tells the four themes apart at a glance. */
 .window {
   position: relative;
-  width: 460px;
-  max-width: 100%;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  box-shadow:
-    0 40px 120px -30px rgba(0, 0, 0, 0.75),
-    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
-  overflow: hidden;
-  transition: box-shadow 0.5s var(--ease);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100vh;
 }
+/* The accent glow survives the loss of the card's outer shadow as a wash off
+   the top edge. Themes without a glow set --accent-glow to transparent, so this
+   is a no-op there, exactly as before. */
 .window.state-work,
 .window.state-rest {
-  box-shadow:
-    0 40px 120px -30px rgba(0, 0, 0, 0.75),
-    0 0 60px -30px var(--accent-glow);
+  box-shadow: inset 0 60px 90px -80px var(--accent-glow);
+  transition: box-shadow 0.5s var(--ease);
 }
 
-/* title bar (brand strip; the OS provides the real window chrome) */
-.titlebar {
-  height: 40px;
+/* The header row is the title bar: brand on the left, window buttons on the
+   right, the whole strip a drag handle (Jot/Nib house style). */
+.app-header {
   display: flex;
   align-items: center;
-  padding: 0 14px;
-  gap: 8px;
-  background: linear-gradient(var(--surface), var(--bg-2));
-  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  padding: 10px 16px;
   -webkit-app-region: drag;
 }
-.titlebar .app-name {
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-dim);
+.app-header button {
+  -webkit-app-region: no-drag;
+}
+.brand {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
 }
-.app-version {
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: normal;
+.wordmark {
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  color: var(--text);
+}
+.version {
+  font-size: 11px;
   color: var(--text-faint);
 }
 .brand-mark {
-  width: 14px;
-  height: 14px;
-  border-radius: 5px;
-  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 40%, #fff));
-  box-shadow: 0 0 10px -1px var(--accent-glow);
-  transition:
-    background 0.5s var(--ease),
-    box-shadow 0.5s var(--ease);
+  flex: 0 0 auto;
+}
+
+.window-controls {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.window-controls button {
+  width: 26px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.window-controls button:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.window-controls button.danger:hover {
+  color: var(--danger);
 }
 
 /* ---------- generic view container ---------------------------------------- */
 .view {
   display: block;
-  padding: 26px 26px 24px;
+  padding: 14px 22px 24px;
   animation: viewIn 0.4s var(--ease);
 }
 @keyframes viewIn {
@@ -1041,4 +1058,72 @@ body.body-mini #root {
 .mini-btn:hover {
   background: var(--accent-soft);
   border-color: var(--accent);
+}
+
+/* ================= UPDATE TOAST ============================================ */
+/* Shown when electron-updater has a new version downloaded and waiting for a
+   restart. Same shape and wording as Jot's, themed with PomPom's variables. */
+.update-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font-size: 13px;
+  animation: updateToastIn 200ms var(--ease);
+  z-index: 100;
+}
+
+@keyframes updateToastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.update-toast-text {
+  color: var(--text-dim);
+}
+
+.update-toast-action {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+
+.update-toast-action:hover {
+  border-color: var(--accent);
+}
+
+.update-toast-dismiss {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.update-toast-dismiss:hover {
+  color: var(--text);
 }

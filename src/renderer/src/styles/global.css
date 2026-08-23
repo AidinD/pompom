@@ -31,10 +31,18 @@ body {
   font-feature-settings: 'tnum';
 }
 
+/* The app fills its frameless window, Jot/Nib style - no centred card inside a
+   second frame. The aux routes (takeover/ambient/mini) already set the same
+   stretch themselves; this just makes it the default. */
 #root {
   min-height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+:root {
+  /* One shared warning colour for destructive chrome (the header's close
+     button), matching Jot and Nib's --danger. Themes don't vary it. */
+  --danger: #ff6b6b;
 }

@@ -1,5 +1,66 @@
 # Decisions
 
+## 2026-08-23 - Frameless window with a Jot/Nib-style header row
+
+Decision: the main window is `frame: false` and its header row IS the title bar
+- brand mark, wordmark, version on the left, minimise and close on the right,
+the whole strip a drag region. The old `.titlebar` was a decorative brand strip
+*under* the OS title bar, so the window was topped by two headers saying the
+same thing. Minimise and close only, no maximise: this is a 560px utility panel.
+
+The card-in-a-window look went with it. `.window` now fills the frame edge to
+edge the way Jot and Nib do, instead of floating a 460px rounded card inside a
+560px window. The accent glow survives as an inset wash off the top edge, so
+the four themes still read differently at a glance.
+
+What was deliberately NOT copied from Jot and Nib: their palette. Nudge took
+Jot's tokens verbatim, but PomPom's four themes are the app's identity, so it
+keeps them and matches the family on layout, chrome, and typography only.
+
+## 2026-08-23 - The app icon is generated from the header mark, and the mark is filled
+
+Supersedes the 2026-08-12 entry below. That icon was cut from a source PNG by an
+ad-hoc PowerShell script that never lived in the repo, so there was no way to
+regenerate it - and it drew the old neon-tomato-on-a-rounded-square, which is
+not the mark the app shows in its header any more.
+
+Now `scripts/generate-icon.mjs` draws it, ported from Jot's and Nib's generator:
+the same dependency-free PNG and ICO writers, the same distance-field
+rendering, so four apps share one icon pipeline. The geometry is
+`PomPomMark.tsx`'s, so the mark beside the wordmark and the mark in the taskbar
+are one drawing. Output moved from `build/icon.ico` to `resources/icon.ico`
+alongside the rest of the family, and the main process now hands the .ico to
+BrowserWindow so Windows picks a frame per DPI scale instead of shrinking a PNG.
+
+**The body is filled, not stroked, and that was settled by looking rather than
+arguing.** Eight tomato variants were rendered in the real header at 20px and
+16px. Every outlined one reduced to a ring with two hooks either side - a horned
+circle, and one that reads too close to Jot's ring. Filled, the silhouette
+survives to 16px. A second finding from the same test: the calyx has to be one
+solid two-lobed shape with the stalk clear above it; separate leaf strokes merge
+into a bar across the top and the stalk vanishes behind it.
+
+Two drawings in the .ico, per the family rule: the full mark at 32 and up, a
+heavier calyx on a slightly larger body below that. It carries 20 and 24 as well
+as the usual ladder, for 125% and 150% display scaling.
+
+## 2026-08-23 - Auto-update via electron-updater, the same wiring as Jot and Nib
+
+Decision: check GitHub once at startup, never in dev, install on quit, and tell
+the renderer so it can offer a restart - Jot's flow, toast and all. Publishing
+goes through `scripts/release.mjs` (Nib's), which cleans `out/` and `dist/`
+first and lets electron-builder do the upload, because a hand-made
+`gh release create` names the installer differently from what `latest.yml`
+references and electron-updater then 404s on it.
+
+`externalizeDepsPlugin()` had to be added to the vite config for main and
+preload. Without it electron-updater is bundled into the main chunk rather than
+required from `node_modules`, which is the failure Jot hit on 1.5.7.
+
+PomPom is unsigned. That means SmartScreen on the first install and silence
+after that; it does not stop updates. There were no releases at all before this
+one, so the first install is a manual download either way.
+
 ## 2026-08-12 - Long rest is a trailing step after the session's last pomodoro
 
 Decision: `Cfg.longRest` (minutes) with no separate interval field — the

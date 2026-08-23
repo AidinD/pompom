@@ -8,6 +8,7 @@ function coerceCfg(cfg: Cfg): Cfg {
 }
 import type { StoreData } from '@shared/store'
 import { GRACE_SECS } from '@shared/ipc'
+import { PomPomMark } from './PomPomMark'
 import ConfigView from './views/ConfigView'
 import TimerView from './views/TimerView'
 import CompleteView from './views/CompleteView'
@@ -35,6 +36,9 @@ export default function App(): JSX.Element {
   const [templates, setTemplates] = useState<Template[]>(SEED_TEMPLATES)
   const [ambientEnabled, setAmbientEnabled] = useState(false)
   const [miniPinned, setMiniPinned] = useState(false)
+  // Set once electron-updater has a new version on disk; the toast is the only
+  // thing that tells the user, since the install itself waits for a quit.
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null)
 
   // Latest theme, reachable from the engine callbacks below without making the
   // callbacks (or a re-subscribe) depend on it.
@@ -72,6 +76,10 @@ export default function App(): JSX.Element {
   // The takeover window's Confirm click advances the timer into the pending step.
   useEffect(() => {
     return window.pompom.takeover.onConfirmed(() => confirmRef.current())
+  }, [])
+
+  useEffect(() => {
+    return window.pompom.onUpdateReady((version) => setUpdateVersion(version))
   }, [])
 
   // The mini widget's Pause/Stop buttons act on the engine and turn the pin off
@@ -232,13 +240,31 @@ export default function App(): JSX.Element {
 
   return (
     <div className={windowClass} id="window">
-      <div className="titlebar">
-        <span className="app-name">
-          <span className="brand-mark" />
-          PomPom
-          <span className="app-version">v{__APP_VERSION__}</span>
-        </span>
-      </div>
+      <header className="app-header">
+        {/* Frameless window: this row is the drag handle. */}
+        <div className="brand">
+          <PomPomMark />
+          <span className="wordmark">PomPom</span>
+          <span className="version">v{__APP_VERSION__}</span>
+        </div>
+        <div className="window-controls">
+          <button
+            type="button"
+            onClick={() => void window.pompom.minimizeWindow()}
+            title="Minimise"
+          >
+            –
+          </button>
+          <button
+            type="button"
+            className="danger"
+            onClick={() => void window.pompom.closeWindow()}
+            title="Close"
+          >
+            ×
+          </button>
+        </div>
+      </header>
 
       {engine.phase === 'idle' && (
         <ConfigView
@@ -267,6 +293,22 @@ export default function App(): JSX.Element {
 
       {engine.phase === 'complete' && (
         <CompleteView cfg={engine.cfg} onNewSession={() => engine.stop()} />
+      )}
+
+      {updateVersion !== null && (
+        <div className="update-toast">
+          <span className="update-toast-text">Update ready (v{updateVersion})</span>
+          <button className="update-toast-action" onClick={() => window.pompom.installUpdate()}>
+            Restart to update
+          </button>
+          <button
+            className="update-toast-dismiss"
+            title="Dismiss"
+            onClick={() => setUpdateVersion(null)}
+          >
+            ×
+          </button>
+        </div>
       )}
     </div>
   )
