@@ -6,12 +6,26 @@ See [PLAN.md](PLAN.md) for current status and [DECISIONS.md](DECISIONS.md) for d
 
 ## Getting started
 
-Requires Node.js 18+ and npm (Windows).
+Requires Node.js 18+ and npm (Windows), and [**keel**](https://github.com/AidinD/keel)
+— the shared layer under the suite — checked out **next to** this repo:
+
+```
+Tools/
+├── pompom/
+└── keel/
+```
 
 ```bash
+git clone https://github.com/AidinD/keel ../keel
 npm install     # install dependencies (first run only)
 npm run dev     # launch the app with hot-reload for development
 ```
+
+Without the sibling checkout `npm install` still **exits 0** — npm links
+`file:../keel` to a dangling symlink and says nothing. What fails is the first
+import: `npm run icon` and `npm run release` die with `ERR_MODULE_NOT_FOUND`. keel
+is a devDependency; electron-vite inlines what the app uses rather than resolving
+it at runtime.
 
 To produce a production build (compiles main/preload/renderer into `out/`):
 
@@ -24,9 +38,11 @@ Other scripts:
 
 - `npm run release` — clean, build, package, and publish a GitHub release. The
   installed app picks the new version up on its next launch (electron-updater).
-- `node scripts/generate-icon.mjs` — redraw `resources/icon.png` and the
-  multi-size `resources/icon.ico` from the header mark. The output is committed;
-  run it after changing `PomPomMark.tsx` so the two stay one drawing.
+- `npm run icon` — redraw `resources/icon.png` and the multi-size
+  `resources/icon.ico` from the header mark. The output is committed; run it after
+  changing `PomPomMark.tsx` so the two stay one drawing. The PNG and ICO writers
+  come from `keel/icon`; the ellipse and the signed polygon stay local, because
+  keel has neither and a filled body needs to know inside from outside.
 - `npm run typecheck` — run the TypeScript compiler for the node (main/preload) and web (renderer) tsconfigs without emitting.
 
 ## How it works

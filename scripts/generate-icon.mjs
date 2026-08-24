@@ -1,10 +1,11 @@
-import { deflateSync } from 'zlib'
 import { writeFileSync, mkdirSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
+import { renderPng, renderIco, coverage, mix } from 'keel/icon'
+
 /*
- * PomPom's app icon, drawn without dependencies.
+ * PomPom's app icon.
  *
  * The mark is the one in the header (`src/renderer/src/PomPomMark.tsx`): a
  * filled tomato - body, stalk, and a leaf either side of it. The geometry below
@@ -14,13 +15,17 @@ import { fileURLToPath } from 'url'
  *
  * One drawing at every size - no simplified twin for the small frames. The
  * body is filled, so the mark survives 16px as it is, and a second drawing
- * would be a second mark nobody approved.
+ * would be a second mark nobody approved. (keel supplies `SMALL_BELOW` for the
+ * apps that do want one; PomPom deliberately does not.)
  *
  * It goes into a multi-size icon.ico so Windows renders each frame at its own
  * size rather than downscaling the 256.
  *
- * The PNG and ICO writers are Nib's and Jot's, kept byte-compatible on purpose -
- * four apps, one icon pipeline.
+ * The PNG writer, the ICO writer and the colour helper come from `keel/icon`,
+ * shared with the rest of the suite. The shapes stay here, because they are the
+ * ones keel does not have: an ellipse, and a SIGNED polygon. keel's `distPolygon`
+ * is unsigned and has no inside test, and PomPom's body has to know inside from
+ * outside to be filled at all.
  *
  * Run with `node scripts/generate-icon.mjs`. The output is committed, because
  * packaging must not depend on having run a script first.
@@ -30,93 +35,15 @@ const here = dirname(fileURLToPath(import.meta.url))
 const outDir = join(here, '..', 'resources')
 mkdirSync(outDir, { recursive: true })
 
-// ---------- PNG ----------
-
-function crc32(buffer) {
-  let crc = 0xffffffff
-  for (let i = 0; i < buffer.length; i += 1) {
-    crc ^= buffer[i]
-    for (let bit = 0; bit < 8; bit += 1) {
-      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1))
-    }
-  }
-  return (crc ^ 0xffffffff) >>> 0
-}
-
-function chunk(type, data) {
-  const body = Buffer.concat([Buffer.from(type, 'ascii'), data])
-  const length = Buffer.alloc(4)
-  length.writeUInt32BE(data.length, 0)
-  const crc = Buffer.alloc(4)
-  crc.writeUInt32BE(crc32(body), 0)
-  return Buffer.concat([length, body, crc])
-}
-
-function renderPng(size, shade) {
-  const rows = []
-  for (let y = 0; y < size; y += 1) {
-    const row = Buffer.alloc(1 + size * 4)
-    for (let x = 0; x < size; x += 1) {
-      row.set(shade(x + 0.5, y + 0.5, size), 1 + x * 4)
-    }
-    rows.push(row)
-  }
-  const header = Buffer.alloc(13)
-  header.writeUInt32BE(size, 0)
-  header.writeUInt32BE(size, 4)
-  header[8] = 8 // bit depth
-  header[9] = 6 // RGBA
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', header),
-    chunk('IDAT', deflateSync(Buffer.concat(rows), { level: 9 })),
-    chunk('IEND', Buffer.alloc(0))
-  ])
-}
-
-// ---------- ICO ----------
-
-/**
- * A Vista-era .ico: a directory of entries, each holding a whole PNG.
- *
- * Written by hand so the small sizes can be a different drawing. Handing
- * electron-builder a single large PNG would have it downscale that one drawing
- * to 16px, which is exactly what the second drawing exists to avoid.
- */
-function buildIco(images) {
-  const header = Buffer.alloc(6)
-  header.writeUInt16LE(0, 0) // reserved
-  header.writeUInt16LE(1, 2) // type: icon
-  header.writeUInt16LE(images.length, 4)
-
-  const directory = []
-  let offset = 6 + images.length * 16
-  for (const { size, png } of images) {
-    const entry = Buffer.alloc(16)
-    entry[0] = size >= 256 ? 0 : size // 0 means 256
-    entry[1] = size >= 256 ? 0 : size
-    entry[2] = 0 // palette
-    entry[3] = 0 // reserved
-    entry.writeUInt16LE(1, 4) // colour planes
-    entry.writeUInt16LE(32, 6) // bits per pixel
-    entry.writeUInt32LE(png.length, 8)
-    entry.writeUInt32LE(offset, 12)
-    directory.push(entry)
-    offset += png.length
-  }
-
-  return Buffer.concat([header, ...directory, ...images.map((image) => image.png)])
-}
-
-// ---------- distance fields ----------
+// ---------- signed distances ----------
 
 /*
- * Every primitive returns a SIGNED distance - negative inside the shape - so a
- * filled body and a stroked stalk can be unioned with a plain Math.min and
- * shaded by one coverage rule.
+ * Both primitives return a SIGNED distance - negative inside the shape - so the
+ * body and the calyx can be unioned with a plain Math.min and shaded by one
+ * coverage rule. keel's `coverage` subtracts a half-weight, which is zero here
+ * because the sign is already in the distance.
  */
 
-const mix = (a, b, t) => a + (b - a) * t
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value))
 
 /**
@@ -125,24 +52,11 @@ const clamp = (value, low, high) => Math.max(low, Math.min(high, value))
  * The exact distance to an ellipse needs an iterative solve; this is the usual
  * cheap approximation - measure in a space where the ellipse is a unit circle,
  * then scale back by the smaller radius. At rx/ry = 30/27 the error is well
- * inside the one pixel of feathering below.
+ * inside the one pixel of feathering.
  */
 function sdEllipse(px, py, cx, cy, rx, ry) {
   const k = Math.hypot((px - cx) / rx, (py - cy) / ry)
   return (k - 1) * Math.min(rx, ry)
-}
-
-/**
- * Signed distance to a round cone: a segment whose radius runs from `ra` at A
- * to `rb` at B. That is what draws the leaves - thick where they meet the
- * stalk, pointed at the tip - and, with ra === rb, the stalk itself.
- */
-function sdCone(px, py, ax, ay, bx, by, ra, rb) {
-  const abx = bx - ax
-  const aby = by - ay
-  const lengthSquared = abx * abx + aby * aby
-  const t = lengthSquared === 0 ? 0 : clamp(((px - ax) * abx + (py - ay) * aby) / lengthSquared, 0, 1)
-  return Math.hypot(px - (ax + abx * t), py - (ay + aby * t)) - mix(ra, rb, t)
 }
 
 /**
@@ -153,6 +67,10 @@ function sdCone(px, py, ax, ay, bx, by, ra, rb) {
  * rasterised rather than approximated with strokes. An earlier version stood in
  * two tapered cones per lobe for it and shipped a visibly different tomato:
  * thin splayed spikes instead of two solid lobes.
+ *
+ * Not keel's `flattenBezier`, which flattens ONE cubic and includes both
+ * endpoints. Chaining it over a run would repeat every joint, and a polygon with
+ * doubled vertices is a polygon with zero-length edges.
  */
 function flattenCubics(start, segments, steps = 24) {
   const points = [start]
@@ -202,18 +120,14 @@ function sdPolygon(px, py, polygon) {
   return inside ? -best : best
 }
 
-/** Anti-aliasing: coverage falls off across about a pixel of distance. */
-function coverage(signedDistance, feather = 1.1) {
-  return clamp(-signedDistance / feather + 0.5, 0, 1)
-}
-
 /**
  * The tomato ramp from PomPomMark's gradient.
  *
- * Per SHAPE, not across the canvas: the component paints each path with an
- * objectBoundingBox gradient, so the body runs the full ramp over the body's
- * box and the calyx runs it again over its own. One ramp across the whole
- * canvas is a different colouring, and next to the header mark it reads redder.
+ * Per SHAPE, not across the canvas - which is why keel's `diagonalRamp` is not
+ * used here. The component paints each path with an objectBoundingBox gradient,
+ * so the body runs the full ramp over the body's box and the calyx runs it again
+ * over its own. One ramp across the whole canvas is a different colouring, and
+ * next to the header mark it reads redder.
  */
 function tomato(px, py, box) {
   const t = clamp(((px - box[0]) / (box[2] - box[0])) * 0.5 + ((py - box[1]) / (box[3] - box[1])) * 0.5, 0, 1)
@@ -227,18 +141,12 @@ function boundsOf(polygon) {
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
 }
 
-// ---------- the two drawings ----------
+// ---------- the drawing ----------
 
 /*
- * ONE drawing, at every size: PomPomMark.tsx's geometry over its 100-unit
- * viewBox. The body ellipse at (50,66) with radii 30 and 27, and the calyx
- * rasterised from the same cubics the component draws.
- *
- * Jot and Nib carry a second, simplified drawing for the sizes below 32, where
- * their stroked marks thin under a pixel. PomPom does not need one and does not
- * get one: its body is filled, so it survives the small frames as it is - and a
- * second drawing means a second mark to approve, which is not what an app icon
- * is for.
+ * PomPomMark.tsx's geometry over its 100-unit viewBox: the body ellipse at
+ * (50,66) with radii 30 and 27, and the calyx rasterised from the same cubics
+ * the component draws.
  */
 const CALYX_START = [50, 36]
 const CALYX_CUBICS = [
@@ -271,7 +179,8 @@ function shadeMark(x, y, size) {
   const body = sdEllipse(ux, uy, 50, 66, 30, 27)
   const calyx = sdPolygon(ux, uy, CALYX)
 
-  const alpha = coverage(Math.min(body, calyx) * unit)
+  // Already signed, so the weight keel would subtract is zero.
+  const alpha = coverage(Math.min(body, calyx) * unit, 0)
   if (alpha === 0) {
     return [0, 0, 0, 0]
   }
@@ -288,15 +197,10 @@ writeFileSync(join(outDir, 'icon.png'), renderPng(512, shadeMark))
 /*
  * The one .ico, used for the packaged app and for the window icon in dev.
  *
- * It carries 20 and 24 as well as the usual ladder, because Windows asks for
- * those at 125% and 150% display scaling - the two scales where a missing frame
- * means it resamples a neighbour and the mark goes soft again.
+ * keel's DEFAULT_LADDER carries 20 and 24 as well as the usual sizes, because
+ * Windows asks for those at 125% and 150% display scaling - the two scales where
+ * a missing frame means it resamples a neighbour and the mark goes soft again.
  */
-writeFileSync(
-  join(outDir, 'icon.ico'),
-  buildIco(
-    [256, 128, 64, 48, 32, 24, 20, 16].map((size) => ({ size, png: renderPng(size, shadeMark) }))
-  )
-)
+writeFileSync(join(outDir, 'icon.ico'), renderIco(shadeMark))
 
 console.log('Wrote resources/icon.png and resources/icon.ico')
