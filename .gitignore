@@ -5,3 +5,8 @@ out/
 *.tsbuildinfo
 .DS_Store
 dist/
+
+# Agent orchestration scratch state - never belongs in a public repo.
+.helm-goal/
+screenshots/
+captures/

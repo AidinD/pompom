@@ -4,7 +4,7 @@ import type { AmbientTick, MiniAction, MiniTick, TakeoverStep } from '../shared/
 
 // The PomPom API surface exposed to the renderer. Persistence (durable JSON
 // store) lands in plan step 4; the takeover multi-window bridge in step 8
-// (see .helm-goal/plan.md).
+//.
 const api = {
   ping: (): string => 'pong',
   /** Frameless window: the header row's buttons drive the real window. */

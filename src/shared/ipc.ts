@@ -9,7 +9,7 @@
 
 /**
  * Grace-period length before the takeover's "Confirm & continue" unlocks.
- * Hard-coded for v1 (configurable later — see .helm-goal/plan.md).
+ * Hard-coded for v1 (configurable later).
  */
 export const GRACE_SECS = 5
 
